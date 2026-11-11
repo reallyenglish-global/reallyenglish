@@ -1,0 +1,38 @@
+---
+interface Props { brandSlug: string; brandName: string; }
+const { brandSlug, brandName } = Astro.props;
+---
+<form class="grid gap-4" data-lead-form data-brand={brandSlug}>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <label class="grid gap-2 text-sm font-semibold">First name<input name="firstName" autocomplete="given-name" required maxlength="80" class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal" /></label>
+    <label class="grid gap-2 text-sm font-semibold">Last name<input name="lastName" autocomplete="family-name" required maxlength="80" class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal" /></label>
+  </div>
+  <label class="grid gap-2 text-sm font-semibold">Work email<input name="email" type="email" autocomplete="email" required maxlength="254" class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal" /></label>
+  <label class="grid gap-2 text-sm font-semibold">Organisation <span class="font-normal text-slate-500">(optional)</span><input name="companyName" autocomplete="organization" maxlength="160" class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal" /></label>
+  <label class="grid gap-2 text-sm font-semibold">How can we help?<textarea name="message" required minlength="10" maxlength="3000" rows="4" class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal"></textarea></label>
+  <label class="flex items-start gap-3 text-sm leading-6 text-slate-700"><input name="consent" type="checkbox" required class="mt-1" /><span>I agree that {brandName} may use my details to respond to this enquiry. Replace this prototype text with approved privacy wording before live collection.</span></label>
+  <label class="absolute -left-[10000px] h-px w-px overflow-hidden" aria-hidden="true">Leave this field empty<input name="website" tabindex="-1" autocomplete="off" /></label>
+  <button class="w-fit rounded-full bg-[var(--brand-primary)] px-6 py-3 font-semibold text-white transition hover:brightness-110 disabled:opacity-60" type="submit">Send enquiry</button>
+  <p class="min-h-6 text-sm text-slate-600" data-form-status aria-live="polite"></p>
+</form>
+<script>
+  document.querySelectorAll<HTMLFormElement>('[data-lead-form]').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const status = form.querySelector<HTMLElement>('[data-form-status]');
+      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!status || !button) return;
+      const values = Object.fromEntries(new FormData(form).entries());
+      values.brandSlug = form.dataset.brand ?? '';
+      values.sourceUrl = `${window.location.origin}${window.location.pathname}`;
+      status.textContent = 'Sending…'; button.disabled = true;
+      try {
+        const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+        const result = await response.json();
+        status.textContent = response.ok ? (result.mode === 'demo' ? 'Demo only: this enquiry was not saved or sent.' : 'Thank you. Your enquiry has been received.') : (result.error ?? 'We could not send your enquiry. Please try again later.');
+        if (response.ok) form.reset();
+      } catch { status.textContent = 'We could not send your enquiry. Please try again later.'; }
+      finally { button.disabled = false; }
+    });
+  });
+</script>

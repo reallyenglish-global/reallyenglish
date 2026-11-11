@@ -1,0 +1,15 @@
+{
+  "kind": "collectionType", "collectionName": "pages",
+  "info": { "singularName": "page", "pluralName": "pages", "displayName": "Page", "description": "Reusable, brand-scoped marketing page content." },
+  "options": { "draftAndPublish": true }, "pluginOptions": {},
+  "attributes": {
+    "slug": { "type": "uid", "targetField": "title", "required": true },
+    "title": { "type": "string", "required": true },
+    "eyebrow": { "type": "string" }, "heroTitle": { "type": "string", "required": true },
+    "heroBody": { "type": "text", "required": true },
+    "ctaLabel": { "type": "string", "default": "Talk to our team" },
+    "ctaHref": { "type": "string", "default": "#contact" },
+    "features": { "type": "json" },
+    "brand": { "type": "relation", "relation": "manyToOne", "target": "api::brand.brand", "inversedBy": "pages", "required": true }
+  }
+}

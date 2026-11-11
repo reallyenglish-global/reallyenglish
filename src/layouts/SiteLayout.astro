@@ -1,0 +1,19 @@
+---
+import '../styles/global.css';
+import type { Brand } from '../lib/site';
+interface Props { brand: Brand; title: string; description: string; primary: string; accent: string; }
+const { title, description, primary, accent } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content={primary} />
+    <title>{title}</title>
+  </head>
+  <body style={`--brand-primary:${primary};--brand-accent:${accent}`}>
+    <slot />
+  </body>
+</html>

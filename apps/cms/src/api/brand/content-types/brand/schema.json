@@ -1,0 +1,15 @@
+{
+  "kind": "collectionType", "collectionName": "brands",
+  "info": { "singularName": "brand", "pluralName": "brands", "displayName": "Brand", "description": "A brand or white-label partner identity." },
+  "options": { "draftAndPublish": true }, "pluginOptions": {},
+  "attributes": {
+    "slug": { "type": "uid", "targetField": "name", "required": true },
+    "name": { "type": "string", "required": true },
+    "logoText": { "type": "string", "required": true },
+    "hostname": { "type": "string", "unique": true },
+    "primaryColor": { "type": "string", "default": "#135b4a" },
+    "accentColor": { "type": "string", "default": "#d8f3e8" },
+    "logo": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "pages": { "type": "relation", "relation": "oneToMany", "target": "api::page.page", "mappedBy": "brand" }
+  }
+}
