@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: website-config
+data:
+  CMS_API_URL: "http://cms:1337"
+  CRM_MODE: "demo"
+  PUBLIC_SITE_ORIGINS: "http://localhost:4321,http://127.0.0.1:4321,http://partner.localhost:4321"
+  TWENTY_LEAD_OBJECT_API_NAME: "websiteLeads"
+  BRAND_HOST_MAP: '{"localhost":"reallyenglish","partner.localhost":"partner-demo"}'

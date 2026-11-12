@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cms
+  labels:
+    app.kubernetes.io/name: cms
+    app.kubernetes.io/part-of: reallyenglish
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cms
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cms
+        app.kubernetes.io/part-of: reallyenglish
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cms
+          image: reallyenglish-cms:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 1337
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "1337"
+            - name: NODE_ENV
+              value: production
+            - name: DATABASE_CLIENT
+              value: sqlite
+            - name: DATABASE_FILENAME
+              value: .tmp/data.db
+          envFrom:
+            - secretRef:
+                name: reallyenglish-cms-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1536Mi
+          startupProbe:
+            httpGet:
+              path: /admin
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /admin
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /admin
+              port: http
+            periodSeconds: 20
+          volumeMounts:
+            - name: cms-runtime
+              mountPath: /app/.tmp
+              subPath: data
+            - name: cms-runtime
+              mountPath: /app/public/uploads
+              subPath: uploads
+      volumes:
+        - name: cms-runtime
+          emptyDir: {}

@@ -6,7 +6,8 @@ const text = (value: unknown, limit: number) => typeof value === 'string' ? valu
 
 export const POST: APIRoute = async ({ request }) => {
   const origin = request.headers.get('origin');
-  if (origin && origin !== new URL(request.url).origin) return json({ error: 'Request rejected.' }, 403);
+  const originAllowlist = (process.env.PUBLIC_SITE_ORIGINS ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+  if (origin && origin !== new URL(request.url).origin && !originAllowlist.includes(origin)) return json({ error: 'Request rejected.' }, 403);
   if (!request.headers.get('content-type')?.includes('application/json')) return json({ error: 'JSON is required.' }, 415);
   let raw: unknown;
   try { raw = await request.json(); } catch { return json({ error: 'Invalid request.' }, 400); }

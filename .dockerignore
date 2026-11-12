@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.astro
+**/.tmp
+**/build
+**/.cache
+**/.env
+**/.env.*
+.git
+.gitignore
+.env
+.env.*
+coverage
+*.log

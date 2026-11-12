@@ -1,74 +1,91 @@
 # ReallyEnglish marketing site prototype
 
-This is a public, early prototype for replacing the HubSpot marketing site with an editor-managed frontend, while supporting white-label partner sites and a separate CRM.
+This is a public, early prototype for replacing the HubSpot marketing site with an editor-managed frontend, supporting white-label partner sites and a separate CRM. It is not a production migration or a live lead-collection service.
 
-## Proposed stack
+## Stack
 
-- **Astro + Tailwind CSS:** component-based, server-rendered frontend with a small client-side form.
-- **Strapi 5:** self-hosted CMS admin for brand and page content; published CMS fields feed the frontend server-side.
-- **Twenty CRM:** server-side lead adapter targets a configured custom `Website Lead` object, keeping contact forms, enquiry details, consent, source and brand context together.
-- **White-label:** exact verified hostname → brand-slug mapping; each page and theme is scoped to one CMS Brand. `partner.localhost` shows the demo partner brand locally.
+- **Astro + Tailwind CSS:** Node 24 server-rendered frontend.
+- **Strapi 5:** local CMS admin for brand and page content.
+- **Twenty CRM:** optional server-side lead adapter. It defaults to safe demo mode and has not been connected to a live workspace.
+- **White-label:** exact hostname-to-brand mapping; the local `partner.localhost` host shows a separate demo brand.
 
-This is a prototype, not a production-ready migration or a live lead collection service. The page content/brand details are illustrative, the lead handler defaults to `CRM_MODE=demo` and deliberately does not store or forward submitted data in that mode, and no live Twenty workspace has been connected.
+The default site content is illustrative; the existing HubSpot mirror has not yet been imported. No production lead data, credentials, or live CRM calls are part of this prototype.
 
-## Prerequisites
+## Makefile: local development and tests
 
-- Node.js **24.x** (see `.node-version`).
-- npm shipped with that Node release.
-- A local Strapi install is needed only to edit and publish CMS content.
+Install and run the frontend with the pinned Node 24 runtime:
 
 ```sh
-npm install
-cp .env.example .env
-npm run dev -- --host 0.0.0.0
+make install
+make dev
 ```
 
-Open `http://localhost:4321` for ReallyEnglish and `http://partner.localhost:4321` for the sample partner theme. Astro falls back to illustrative fixture content when Strapi is unreachable, so the frontend can be run independently.
-
-## Start the CMS
+Run Strapi separately when you need the editor. Local Strapi uses SQLite; replace the generated sample secrets in `apps/cms/.env` before using it:
 
 ```sh
-cd apps/cms
-npm install
-cp .env.example .env
-# Replace all placeholder Strapi secrets in apps/cms/.env with fresh random values.
-npm run develop
+make cms-install
+cp apps/cms/.env.example apps/cms/.env
+# Replace all example values in apps/cms/.env with fresh local secrets.
+make cms-dev
 ```
 
-The current CMS scaffold uses a local SQLite database. Complete the setup in [apps/cms/README.md](apps/cms/README.md): create a Brand and a `home` Page for each tenant, publish them, and grant the public role read-only `find`/`findOne` access. Never allow public writes. Configure `CMS_API_URL`; use a read-only server-side API token if your permission setup needs one. Do not expose that token to browser code.
-
-## CRM prototype setup
-
-No real CRM credentials belong in this repository. `CRM_MODE=demo` accepts a validated demo submission but does not persist or forward it. To test against a Twenty sandbox, first create a `Website Lead` custom object with API name `websiteLeads` and the following fields in that workspace:
-
-- `name` (the required display name), `submissionId` (text; make it unique if the workspace/API supports it)
-- `firstName`, `lastName`, `email`, `companyName`, `message`, `brandSlug`, `sourceUrl` (text)
-- `consent` (boolean)
-
-Create a least-privilege API key scoped to create those records, then set `CRM_MODE=twenty`, `TWENTY_BASE_URL`, `TWENTY_API_KEY`, and `TWENTY_LEAD_OBJECT_API_NAME` in the server environment. The API key is server-only. The object/field names and create response must be verified against the target workspace before any real lead collection; the live integration has not been exercised here. Failed CRM calls return a generic error; the site does not claim success. This prototype does not yet provide a durable retry queue, rate limiting, or a retention/deletion workflow, so **do not connect it to a live production form**.
-
-The Strapi CMS scaffold is pinned to the current upstream release in its lockfile, but `npm audit` currently reports 37 advisories in that dependency tree (2 low, 12 moderate, 23 high). No production CMS installation or deployment is authorized; review the affected advisories and wait for safe upstream fixes or choose another CMS before connecting real partner content or data. This is a known prototype blocker, not an accepted production risk.
-
-## White-label boundaries
-
-- `BRAND_HOST_MAP` is a JSON map from exact, verified hostnames to CMS Brand slugs. It is an allowlist, not a query-string switch.
-- Brand colors are restricted to six-digit hex values before use in inline CSS.
-- Public page lookup is filtered by both page slug and brand slug; draft pages are not exposed.
-- Partner content, legal terms, domain verification, consent wording, localisation, accessibility, analytics boundaries, tenant isolation, and domain lifecycle need product/legal review before launch.
-
-## Project structure
-
-```text
-src/                         Astro site, shared components, CMS reader, CRM endpoint
-apps/cms/                    Strapi scaffold and Brand/Page content types
-.env.example                 Local frontend environment template (no credentials)
-```
-
-## Verification
+Run the automated checks:
 
 ```sh
-node --version               # must be v24.x
-npm run build                # Astro SSR production build
+make test
 ```
 
-See the internal re-work record for the broader decision context; it remains in the private planning repository. This repository is a fresh prototype and does not copy the old HubSpot export, customer data, credentials, or assets from the existing `website`, `homepage`, or `homepage-mirror` repositories.
+`make test` builds Astro, starts the built server, and checks health, the ReallyEnglish page, partner-host selection, demo lead submission, consent validation, cross-origin rejection, and offline Kustomize rendering. It uses only synthetic test values. `make cms-build` builds Strapi after its dependencies are installed; `make cms-audit` reports dependency advisories.
+
+## Local Kubernetes / Kind prototype
+
+The Kubernetes overlay is intentionally *local-only*. It has no Ingress, public hostname, registry credentials, or production namespace. The Strapi SQLite database and uploads use `emptyDir`, so content in a Kind pod is disposable and can be lost when the pod is recreated. Use the normal local Strapi process for durable local editorial work. The frontend remains in `CRM_MODE=demo` and discards form data.
+
+Render the manifests without contacting a cluster:
+
+```sh
+make k8s-render
+```
+
+To create and run the optional local Kind prototype:
+
+```sh
+make kind-up
+make image-build
+cp k8s/cms-secrets.env.example .env.k8s
+# Edit .env.k8s: replace every placeholder with fresh random values; never commit it.
+KUBE_CONTEXT=kind-reallyenglish-prototype make local-secrets
+make kind-load
+KUBE_CONTEXT=kind-reallyenglish-prototype DEPLOY_APPROVED=yes make deploy
+KUBE_CONTEXT=kind-reallyenglish-prototype make port-forward
+```
+
+Visit `http://localhost:4321`. To access the CMS admin, use `KUBE_CONTEXT=kind-reallyenglish-prototype make port-forward-cms`, then open `http://localhost:1337/admin`.
+
+- `PUBLIC_SITE_ORIGINS` is the explicit comma-separated Origin allowlist for the lead endpoint; include every exact browser origin (scheme, host, and port; no path or trailing slash), especially behind a reverse proxy.
+- `BRAND_HOST_MAP` maps exact verified hostnames to CMS Brand slugs; it is an allowlist, not a query-string switch.
+
+The Makefile `deploy` target refuses every context except the named local Kind context and requires an explicit `DEPLOY_APPROVED=yes`. It does not deploy to GKE or any remote/production cluster. No `kubectl apply`, Kind cluster creation, or image build was run while preparing this scaffold.
+
+## Production blockers
+
+Do not treat these manifests as production deployment configuration. Before any remote deployment or real lead collection:
+
+- Resolve the current Strapi dependency audit findings (37 advisories: 23 high, 12 moderate, 2 low) or choose a safer CMS; verify the full CMS install and build.
+- Replace SQLite and ephemeral uploads with a managed database and durable object storage/PVC, and define backup/restore and migration procedures.
+- Add an approved image registry, immutable image tags, image scanning/signing, cluster/namespace selection, ingress and TLS, DNS, resource/cost limits, monitoring, and secret-manager integration.
+- Approve partner content, domain verification, localization, accessibility, consent/privacy wording, retention/deletion, spam/rate limiting, and Twenty field/API mapping.
+- Import the existing `homepage-mirror` with a repeatable dry-run-first seeding process; do not manually recreate hundreds of pages or blindly publish raw HubSpot HTML.
+
+No production deployment is authorized by this prototype work. Production cluster changes, public cutover, domain changes, and live CRM credentials each require separate approval.
+
+## Manual commands
+
+```sh
+mise exec node@24 -- node --version
+mise exec node@24 -- npm run build
+mise exec node@24 -- npm test
+make k8s-render
+```
+
+See [apps/cms/README.md](apps/cms/README.md) for content types and read-only public API permission guidance. The planning decision and migration rationale remain in the private re-work repository.
