@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: reallyenglish-prototype
+  labels:
+    app.kubernetes.io/part-of: reallyenglish
+    pod-security.kubernetes.io/enforce: restricted
