@@ -39,7 +39,7 @@ try {
  await gql('mutation{activateWorkspace(data:{displayName:"CI disposable"}){id}}',{},access);
  stage='api_key';
  let output;
- try { output = execFileSync('docker',['compose','-f','compose.ci.yml','exec','-T','-e','NODE_ENV=test','twenty-server','yarn','command','workspace:generate-api-key','--workspace-id',workspace.id,'--name','ci-synthetic','--expires-in','1'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:180000}); }
+ try { output = execFileSync('docker',['compose','-f','compose.ci.yml','exec','-T','-e','NODE_ENV=test','twenty-server','yarn','command:prod','workspace:generate-api-key','--workspace-id',workspace.id,'--name','ci-synthetic','--expires-in','1'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:180000}); }
  catch { throw new Error('key_command_failed'); }
  const matches = [...output.matchAll(/TOKEN:\s*([A-Za-z0-9_.-]+)/g)];
  if(matches.length!==1) throw new Error('key_missing_or_ambiguous');
