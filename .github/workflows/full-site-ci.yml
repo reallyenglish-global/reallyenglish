@@ -9,6 +9,35 @@ concurrency:
   group: full-site-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  prepare-content:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Resolve locks on hosted runner only (bootstrap phase)
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm install --prefix apps/cms --package-lock-only --ignore-scripts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-locks
+          path: |
+            package-lock.json
+            apps/cms/package-lock.json
+          retention-days: 1
+      - run: npm ci
+      - run: node --test tests/content/*.test.mjs
+      - run: node scripts/content/import-public-site.mjs --out .ci/content/manifest.json
+      - run: npm run build
+      - name: Compile CMS
+        run: |
+          npm ci --prefix apps/cms
+          npm run build --prefix apps/cms
   bootstrap-probe:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -45,6 +74,10 @@ jobs:
         run: |
           test "$(df --output=avail -B1 . | tail -1)" -ge 3221225472
           docker compose -f compose.ci.yml up -d --wait --wait-timeout 720
+      - name: Internal readiness diagnostics (no service logs)
+        run: |
+          docker compose -f compose.ci.yml ps
+          docker compose -f compose.ci.yml exec -T twenty-server curl -fsS http://localhost:3000/healthz
       - name: Credential-free workspace bootstrap and authenticated metadata
         run: node scripts/ci/bootstrap-twenty.mjs
       - name: Scoped teardown

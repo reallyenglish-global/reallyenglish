@@ -54,11 +54,18 @@ function hostBrandMap(): Record<string, string> {
   } catch { return {}; }
 }
 
+export function configuredBrand(host: string): Brand | null {
+  if (!/^[a-z0-9.-]+(?::[0-9]{1,5})?$/i.test(host)) return null;
+  const hostname = host.split(':')[0]!.toLowerCase();
+  const mapping = hostBrandMap();
+  const slug = Object.hasOwn(mapping, hostname) ? mapping[hostname] : undefined;
+  return slug && Object.hasOwn(fallbackBrands, slug) ? fallbackBrands[slug]! : null;
+}
+
 export function resolveBrand(host: string): Brand {
-  const normalizedHost = host.split(':')[0]?.toLowerCase() ?? '';
-  const slug = hostBrandMap()[normalizedHost] ?? 'reallyenglish';
-  const fallback = fallbackBrands[slug];
-  return fallback ?? { ...fallbackBrands.reallyenglish!, slug, name: slug.replace(/-/g, ' '), shortName: slug.slice(0, 2).toUpperCase(), logoText: slug };
+  const brand = configuredBrand(host);
+  if (!brand) throw new Error('unknown_host');
+  return brand;
 }
 
 function unwrap<T>(payload: unknown): T | null {

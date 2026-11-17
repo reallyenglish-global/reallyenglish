@@ -1,7 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
-const base = 'http://127.0.0.1:3000';
+const container = execFileSync('docker',['compose','-f','compose.ci.yml','ps','-q','twenty-server'],{encoding:'utf8'}).trim();
+const inspect = JSON.parse(execFileSync('docker',['inspect',container],{encoding:'utf8'}))[0];
+const network = Object.values(inspect.NetworkSettings.Networks)[0];
+if (!network || !/^172\.|^192\.168\.|^10\./.test(network.IPAddress)) throw new Error('invalid_sandbox_ip');
+const base = `http://${network.IPAddress}:3000`;
+console.log(JSON.stringify({stage:'transport',sandboxIP:network.IPAddress,ports:inspect.NetworkSettings.Ports}));
 const mask = value => { if (process.env.GITHUB_ACTIONS) console.log(`::add-mask::${value}`); return value; };
 let stage = 'signup';
 async function gql(query, variables, token) {
