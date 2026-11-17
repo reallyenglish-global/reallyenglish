@@ -11,7 +11,7 @@ console.log(JSON.stringify({stage:'transport',sandboxIP:network.IPAddress,ports:
 const mask = value => { if (process.env.GITHUB_ACTIONS) console.log(`::add-mask::${value}`); return value; };
 let stage = 'signup';
 async function gql(query, variables, token) {
-  const response = await fetch(`${base}/graphql`, {method:'POST', headers:{host:'localhost:3000',origin:'http://localhost:3000','content-type':'application/json', ...(token ? {authorization:`Bearer ${token}`} : {})}, body:JSON.stringify({query,variables}), signal:AbortSignal.timeout(300000)});
+  const response = await fetch(`${base}/metadata`, {method:'POST', headers:{host:'localhost:3000',origin:'http://localhost:3000','content-type':'application/json', ...(token ? {authorization:`Bearer ${token}`} : {})}, body:JSON.stringify({query,variables}), signal:AbortSignal.timeout(300000)});
   const result = await response.json();
   if (!response.ok || result.errors?.length) {
     // Only schema/error codes are safe to log, never API bodies or tokens.
