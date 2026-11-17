@@ -21,9 +21,9 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     const hook=JSON.parse(await readFile(process.env.CMS_VERIFY_HOOK_REPORT!,'utf8'));
     const probe=hook.draftOnly;
     if(!hook.success || !probe?.path?.startsWith('/ci-draft-'))return ctx.badRequest();
-    const docs=strapi.documents('api::page.page');
+    const docs:any=strapi.documents('api::page.page');
     const draft=await docs.findOne({documentId:probe.documentId,status:'draft'});
-    if(draft?.path!==probe.path || draft.externalKey!==probe.key)return ctx.badRequest();
+    if(!draft || draft.path!==probe.path || draft.externalKey!==probe.key)return ctx.badRequest();
     if(action==='draft-update'){
       const title=probe.sentinel+'_LIVE',contentHtml=`<p>${title}</p>`;
       await docs.update({documentId:probe.documentId,data:{title,contentHtml,contentHash:crypto.createHash('sha256').update(contentHtml).digest('hex')}});
