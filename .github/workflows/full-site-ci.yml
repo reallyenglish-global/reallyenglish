@@ -1,0 +1,88 @@
+name: Full-site disposable integration
+on:
+  push:
+    branches: [feat/full-site-cms-crm-ci]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: full-site-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      COMPOSE_PROJECT_NAME: re-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      STRAPI_TELEMETRY_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Runtime and capacity
+        run: |
+          git rev-parse HEAD
+          df -h .
+          free -m
+          test "$(df --output=avail -B1 . | tail -1)" -ge 10737418240
+      - name: Install locked dependencies on hosted runner only
+        run: |
+          npm ci
+          npm ci --prefix apps/cms
+      # Advisory reports remain production gates, never forced downgrades.
+      - name: Capture dependency advisory evidence
+        run: |
+          mkdir -p .ci/reports
+          npm audit --json > .ci/reports/audit-root.json || test "$?" -eq 1
+          npm audit --prefix apps/cms --json > .ci/reports/audit-cms.json || test "$?" -eq 1
+      - name: Install pinned browser tooling on hosted runner
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.65.1
+          npx playwright install --with-deps chromium
+      - name: Focused tests
+        run: node --test tests/content/*.test.mjs tests/lead-endpoint.test.mjs
+      - name: Complete public-source inventory
+        run: node scripts/content/import-public-site.mjs --out .ci/content/manifest.json
+      - name: Compile real applications
+        run: |
+          npm run build
+          npm run build --prefix apps/cms
+      - name: Generate disposable secrets
+        run: |
+          node --input-type=module <<'JS'
+          import {randomBytes} from 'node:crypto';
+          import {appendFileSync} from 'node:fs';
+          for (const [key,format] of [['TWENTY_DB_PASSWORD','hex'],['CMS_DB_PASSWORD','hex'],['ENCRYPTION_KEY','base64'],['APP_SECRET','hex']]) {
+            const value=randomBytes(32).toString(format);
+            console.log(`::add-mask::${value}`);
+            appendFileSync(process.env.GITHUB_ENV,`${key}=${value}\n`);
+          }
+          JS
+      - name: Pull pinned disposable services
+        run: docker compose -f compose.ci.yml pull --quiet
+      - name: Migrate and start real databases cache Twenty server and worker
+        run: |
+          test "$(df --output=avail -B1 . | tail -1)" -ge 3221225472
+          docker compose -f compose.ci.yml up -d --wait --wait-timeout 720
+      - name: Credential-free Twenty workspace and metadata
+        run: node scripts/ci/bootstrap-twenty.mjs
+      - name: Real CMS seed publication Astro inventory and CRM write-read
+        run: node scripts/ci/run-stack.mjs
+      - name: Inventory diagnostics (no source bodies)
+        if: always()
+        run: |
+          node scripts/ci/report-inventory.mjs
+          node scripts/ci/report-coverage.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: full-site-evidence
+          path: .ci/reports/
+          include-hidden-files: true
+          retention-days: 7
+      - name: Scoped teardown
+        if: always()
+        run: docker compose -f compose.ci.yml down --volumes --remove-orphans

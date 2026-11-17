@@ -17,12 +17,17 @@ const { brandSlug, brandName } = Astro.props;
 </form>
 <script>
   document.querySelectorAll<HTMLFormElement>('[data-lead-form]').forEach((form) => {
+    let submissionId = crypto.randomUUID();
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const status = form.querySelector<HTMLElement>('[data-form-status]');
       const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
       if (!status || !button) return;
-      const values = Object.fromEntries(new FormData(form).entries());
+      const values: Record<string, unknown> = Object.fromEntries(new FormData(form).entries());
+      values.consent = values.consent === 'on';
+      values.submissionId = submissionId;
+      values.sourcePath = window.location.pathname;
+      values.locale = document.documentElement.lang;
       values.brandSlug = form.dataset.brand ?? '';
       values.sourceUrl = `${window.location.origin}${window.location.pathname}`;
       status.textContent = 'Sending…'; button.disabled = true;
@@ -30,7 +35,7 @@ const { brandSlug, brandName } = Astro.props;
         const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
         const result = await response.json();
         status.textContent = response.ok ? (result.mode === 'demo' ? 'Demo only: this enquiry was not saved or sent.' : 'Thank you. Your enquiry has been received.') : (result.error ?? 'We could not send your enquiry. Please try again later.');
-        if (response.ok) form.reset();
+        if (response.ok) { form.reset(); submissionId = crypto.randomUUID(); }
       } catch { status.textContent = 'We could not send your enquiry. Please try again later.'; }
       finally { button.disabled = false; }
     });

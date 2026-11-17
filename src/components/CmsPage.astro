@@ -1,0 +1,41 @@
+---
+import LeadForm from './LeadForm.astro';
+import {sanitizeContent} from '../../apps/cms/src/seed/content-contract';
+import '../styles/global.css';
+const {page} = Astro.props;
+const html = sanitizeContent(page.contentHtml).replaceAll('href="https://www.reallyenglish.com/', 'href="/');
+---
+<!doctype html>
+<html lang={page.locale}>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{page.title}</title>
+  <meta name="description" content={page.description} />
+  <meta property="og:title" content={page.title} />
+  <meta property="og:description" content={page.description} />
+  <meta property="og:url" content={page.canonical} />
+  <meta property="og:type" content="website" />
+  <link rel="canonical" href={page.canonical} />
+  {page.alternates.map((alt) => <link rel="alternate" hreflang={alt.locale} href={`https://www.reallyenglish.com${alt.path}`} />)}
+</head>
+<body>
+  <header><a href="/">ReallyEnglish</a><nav aria-label="Main">{page.navigation.map((link) => <a href={link.href.replace('https://www.reallyenglish.com/','/')}>{link.text}</a>)}</nav></header>
+  <main id="source-content" data-content-hash={page.contentHash} data-key={page.externalKey} set:html={html} />
+  <section id="contact"><h2>Contact ReallyEnglish</h2><LeadForm brandSlug="reallyenglish" brandName="ReallyEnglish" /></section>
+  <footer><div set:html={page.footer.html.replaceAll('href="https://www.reallyenglish.com/', 'href="/')} />Public-source prototype — editorial and production approval pending.</footer>
+</body>
+</html>
+<style is:global>
+body {font-family:system-ui,sans-serif;color:#16362e;background:#fafcfb;margin:0;line-height:1.7}
+header,main,footer,#contact {max-width:72rem;margin:auto;padding:1.5rem}
+header {display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;border-bottom:1px solid #ddd}
+nav {display:flex;flex-wrap:wrap;gap:.5rem 1rem;max-width:100%}
+main,footer {overflow-wrap:anywhere} img {max-width:100%;height:auto}
+input,textarea {max-width:100%;min-width:0}
+#source-content h1 {font-size:2.4rem;line-height:1.2} #source-content h2 {font-size:1.8rem}
+#source-content p,#source-content ul,#source-content table {margin:1rem 0}
+#source-content ul {list-style:disc;padding-left:2rem} #source-content ol {list-style:decimal;padding-left:2rem}
+#source-content img {max-width:100%;height:auto} a {color:#135b4a;text-decoration:underline}
+#contact {max-width:42rem} table {display:block;overflow:auto} th,td {padding:.5rem;border:1px solid #ccc}
+</style>
