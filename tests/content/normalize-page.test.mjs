@@ -34,6 +34,14 @@ test('preserves semantic text, footer, alternates and records blocked media', ()
   assert.match(result.contentHtml, /https:\/\/example.org\/author/);
 });
 
+test('promotes vetted lazy images without source scripts or empty placeholders',()=>{
+ const result=normalizePage('<div class="body-container"><h1>Photos</h1><img data-src="/hubfs/team.png" alt="Team"><img src="data:image/gif;base64,AAAA" data-src="/hubfs/course.jpg"><img src="https://tracker.invalid/pixel"></div>',source);
+ assert.match(result.contentHtml,/src="https:\/\/www.reallyenglish.com\/hubfs\/team.png"/);
+ assert.match(result.contentHtml,/src="https:\/\/www.reallyenglish.com\/hubfs\/course.jpg"/);
+ assert.doesNotMatch(result.contentHtml,/data-src|data:image|tracker.invalid/);
+ assert.equal((result.contentHtml.match(/<img /g)||[]).length,2);
+});
+
 test('fails closed for unsupported source extraction', () => {
   assert.throws(() => normalizePage('<html><body><p>no reviewed region</p></body></html>', source), /content_region_empty/);
   assert.throws(() => normalizePage('<div class="body-container">x</div>', 'https://example.test'), /untrusted_source/);

@@ -46,6 +46,13 @@ export function normalizePage(html, sourceInput) {
   $('script,style,iframe,frame,object,embed,form,input,button,textarea,select,option,svg,math,noscript,template,video,audio,source,.hs-cta-wrapper,[hidden],[aria-hidden="true"]').remove();
   $('*').each((_, el) => {
     const node = $(el);
+    if (el.tagName === 'img') {
+      // HubSpot lazy images need data-src promoted before active scripts and
+      // custom attributes are discarded. Never retain empty/tracking placeholders.
+      const safe = [node.attr('src'),node.attr('data-src')].map(raw=>raw && safeReference(raw,source.href,{image:true})).find(Boolean);
+      if (!safe) { node.remove(); return; }
+      node.attr('src',safe);node.attr('loading','eager');
+    }
     for (const name of Object.keys(el.attribs || {})) if (/^on/i.test(name) || ['style','srcset','srcdoc','nonce'].includes(name)) node.removeAttr(name);
     for (const attr of ['href','src']) {
       const raw = node.attr(attr); if (!raw) continue;
