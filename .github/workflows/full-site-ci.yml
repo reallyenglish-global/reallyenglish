@@ -9,52 +9,12 @@ concurrency:
   group: full-site-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  prepare-content:
+  acceptance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .node-version
-      - name: Resolve locks on hosted runner only (bootstrap phase)
-        run: |
-          npm install --package-lock-only --ignore-scripts
-          npm install --prefix apps/cms --package-lock-only --ignore-scripts
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: dependency-locks
-          path: |
-            package-lock.json
-            apps/cms/package-lock.json
-          retention-days: 1
-      - run: npm ci
-      - run: node --test tests/content/*.test.mjs
-      - run: node scripts/content/import-public-site.mjs --out .ci/content/manifest.json
-      - name: Inventory diagnostics (no source bodies)
-        if: always()
-        run: node scripts/ci/report-inventory.mjs
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: inventory-report
-          path: .ci/reports/inventory.json
-          include-hidden-files: true
-          retention-days: 3
-      - run: npm run build
-        if: always()
-      - name: Compile CMS
-        if: always()
-        run: |
-          npm ci --prefix apps/cms
-          npm run build --prefix apps/cms
-  bootstrap-probe:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     env:
       COMPOSE_PROJECT_NAME: re-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      STRAPI_TELEMETRY_DISABLED: 'true'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -67,8 +27,19 @@ jobs:
           git rev-parse HEAD
           df -h .
           free -m
-          docker version
           test "$(df --output=avail -B1 . | tail -1)" -ge 10737418240
+      - name: Install locked dependencies on hosted runner only
+        run: |
+          npm ci
+          npm ci --prefix apps/cms
+      - name: Focused tests
+        run: node --test tests/content/*.test.mjs tests/lead-endpoint.test.mjs
+      - name: Complete public-source inventory
+        run: node scripts/content/import-public-site.mjs --out .ci/content/manifest.json
+      - name: Compile real applications
+        run: |
+          npm run build
+          npm run build --prefix apps/cms
       - name: Generate disposable secrets
         run: |
           node --input-type=module <<'JS'
@@ -82,16 +53,24 @@ jobs:
           JS
       - name: Pull pinned disposable services
         run: docker compose -f compose.ci.yml pull --quiet
-      - name: Migrate and start real Twenty server and worker
+      - name: Migrate and start real databases cache Twenty server and worker
         run: |
           test "$(df --output=avail -B1 . | tail -1)" -ge 3221225472
           docker compose -f compose.ci.yml up -d --wait --wait-timeout 720
-      - name: Internal readiness diagnostics (no service logs)
-        run: |
-          docker compose -f compose.ci.yml ps
-          docker compose -f compose.ci.yml exec -T twenty-server curl -fsS http://localhost:3000/healthz
-      - name: Credential-free workspace bootstrap and authenticated metadata
+      - name: Credential-free Twenty workspace and metadata
         run: node scripts/ci/bootstrap-twenty.mjs
+      - name: Real CMS seed publication Astro inventory and CRM write-read
+        run: node scripts/ci/run-stack.mjs
+      - name: Inventory diagnostics (no source bodies)
+        if: always()
+        run: node scripts/ci/report-inventory.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: full-site-evidence
+          path: .ci/reports/
+          include-hidden-files: true
+          retention-days: 3
       - name: Scoped teardown
         if: always()
         run: docker compose -f compose.ci.yml down --volumes --remove-orphans

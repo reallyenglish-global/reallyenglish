@@ -21,6 +21,20 @@ x-twenty: &twenty
     - twenty-storage:/app/packages/twenty-server/.local-storage
   networks: [sandbox]
 services:
+  cms-db:
+    image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    environment:
+      POSTGRES_PASSWORD: ${TWENTY_DB_PASSWORD:?}
+      POSTGRES_DB: strapi
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d strapi']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    volumes: ['cms-db:/var/lib/postgresql/data']
+    networks: [sandbox]
   twenty-db:
     image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
     environment:
@@ -75,4 +89,5 @@ networks:
     internal: true
 volumes:
   twenty-db:
+  cms-db:
   twenty-storage:
