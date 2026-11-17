@@ -51,6 +51,15 @@ try {
  stage='lead_schema';
  const schema = await provisionLeadSchema(base,access);
  await provisionLeadSchema(base,access); // Idempotency on the same workspace.
+ stage='runtime_permissions';
+ // Compare identical authenticated reads before any app/proxy transport; no rows
+ // or credentials are logged. This distinguishes principal/cache from proxy bugs.
+ for(const [principal,token] of [['api-key',apiKey],['workspace-admin',access]]) {
+  for(const path of ['/rest/companies?limit=1','/rest/websiteLeads?limit=1']) {
+   const res=await fetch(base+path,{headers:{authorization:`Bearer ${token}`,host:'localhost:3000'},signal:AbortSignal.timeout(30000)});
+   console.log(JSON.stringify({stage,principal,path,status:res.status}));
+  }
+ }
  mkdirSync('.ci/private',{recursive:true,mode:0o700});
  writeFileSync('.ci/private/twenty.json',JSON.stringify({apiKey,base,workspaceId:workspace.id}),{mode:0o600});
  console.log(JSON.stringify({stage:'bootstrap_complete',workspaceId:workspace.id,metadataResponseKeys:Object.keys(metadata),fullSiteAcceptance:false}));

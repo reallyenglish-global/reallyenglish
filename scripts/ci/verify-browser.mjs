@@ -54,7 +54,7 @@ export async function verifyBrowser(){
    const responsePromise=page.waitForResponse(r=>r.url()===base+'/api/leads'&&r.request().method()==='POST');
    await form.locator('button[type="submit"]').click();
    const response=await responsePromise,body=await response.json(),payload=response.request().postDataJSON();
-   assert.equal(response.status(),200);assert.equal(body.ok,true);assert.notEqual(body.mode,'demo');
+   assert.equal(response.status(),202);assert.equal(body.ok,true);assert.notEqual(body.mode,'demo');
    await page.locator('[data-form-status]').filter({hasText:'received'}).waitFor();
    const dedup=createHash('sha256').update('reallyenglish\0'+payload.submissionId).digest('hex');
    const url=new URL('/rest/websiteLeads',process.env.TWENTY_BASE_URL);url.searchParams.set('filter',`dedupKey[eq]:${dedup}`);

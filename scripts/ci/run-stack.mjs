@@ -42,5 +42,11 @@ try{
  report.success=true;
 }catch(e){report.error={stage,message:e.message};console.error(JSON.stringify(report.error));process.exitCode=1;
  // Emit only bounded redacted startup diagnostics, never raw service/CRM logs.
+ if(stage==='crm') {
+  let log='';try{log=execFileSync('docker',['compose','-f','compose.ci.yml','logs','--no-color','--tail','150','twenty-server'],{encoding:'utf8',maxBuffer:500000});}catch{}
+  // Stack frames identify the refusing pinned guard; exclude raw HTTP payloads,
+  // query parameters, auth and record bodies from public logs.
+  console.error(log.split('\n').filter(l=>/\bat [A-Za-z0-9_.$]+ \(|PermissionsException|PERMISSION_DENIED/.test(l)&&!/(authorization|Bearer|TOKEN|password)/i.test(l)).slice(-35).join('\n'));
+ }
  if(stage==='cms') {let log='';try{log=readFileSync('.ci/private/cms.log','utf8');}catch{}for(const s of secrets)log=log.replaceAll(s,'[secret]');for(const s of [process.env.TWENTY_DB_PASSWORD,process.env.CMS_DB_PASSWORD])if(s)log=log.replaceAll(s,'[secret]');console.error(log.slice(-6000));}
 }finally{for(const child of children)await stop(child);await new Promise(r=>proxy.close(r));writeFileSync(resolve(reports,'acceptance.json'),JSON.stringify(report,null,2));}
