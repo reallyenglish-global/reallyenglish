@@ -10,7 +10,7 @@ export async function provisionLeadSchema(base, key) {
   if(!response.ok) {
    const result=await response.json().catch(()=>({}));
    const messages=[result.message,...(result.errors||[]).map(e=>e.message)].filter(x=>typeof x==='string').map(x=>x.replace(/[A-Za-z0-9_.-]{32,}/g,'[redacted]').slice(0,300));
-   console.error(JSON.stringify({stage:'metadata',method:body?'POST':'GET',path,status:response.status,messages}));
+   console.error(JSON.stringify({stage:'metadata',method:body?'POST':'GET',path,status:response.status,field:body?.name,type:body?.type,messages,responseShape:JSON.stringify(result).replace(/[A-Za-z0-9_.-]{32,}/g,'[redacted]').slice(0,5000)}));
    throw new Error(`metadata_${path}_${response.status}`);
   }
   return response.json();
