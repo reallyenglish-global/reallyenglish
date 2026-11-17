@@ -52,7 +52,10 @@ export const POST: APIRoute = async (context: APIContext) => {
   // Never consult forwarded headers, body/query tenant selectors or suffix matches.
   const host = request.headers.get('host') ?? requestUrl.host;
   const brand = configuredBrand(host);
-  if (!brand || host.toLowerCase() !== requestUrl.host.toLowerCase()) return json({ error: 'Request rejected.' }, 421);
+  if (!brand || host.toLowerCase() !== requestUrl.host.toLowerCase()) {
+    if (process.env.CI === 'true') console.error(JSON.stringify({stage:'host-check',host,urlHost:requestUrl.host}));
+    return json({ error: 'Request rejected.' }, 421);
+  }
   if (request.headers.get('origin') !== requestUrl.origin) return json({ error: 'Request rejected.' }, 403);
   let address = 'unavailable';
   try { address = context.clientAddress || address; } catch { /* No forwarded-IP fallback. */ }

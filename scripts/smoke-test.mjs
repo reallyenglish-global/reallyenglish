@@ -55,9 +55,9 @@ try {
   const headers = { 'content-type': 'application/json', origin: base };
   const valid = await fetch(`${base}/api/leads`, {
     method: 'POST', headers,
-    body: JSON.stringify({ firstName: 'Smoke', lastName: 'Test', email: 'smoke@example.test', message: 'Synthetic smoke test only', brandSlug: 'reallyenglish', consent: true }),
+    body: JSON.stringify({ firstName: 'Smoke', lastName: 'Test', email: 'smoke@example.test', message: 'Synthetic smoke test only', brandSlug: 'reallyenglish', consent: true, submissionId: crypto.randomUUID(), sourcePath: '/', locale: 'en' }),
   });
-  assert.equal(valid.status, 202);
+  assert.equal(valid.status, 202, logs);
   assert.equal((await valid.json()).mode, 'demo');
 
   const noConsent = await fetch(`${base}/api/leads`, {
@@ -68,7 +68,7 @@ try {
 
   const crossOrigin = await fetch(`${base}/api/leads`, {
     method: 'POST', headers: { ...headers, origin: 'https://invalid.example' },
-    body: JSON.stringify({ firstName: 'Smoke', lastName: 'Test', email: 'smoke@example.test', message: 'Synthetic smoke test only', brandSlug: 'reallyenglish', consent: true }),
+    body: JSON.stringify({ firstName: 'Smoke', lastName: 'Test', email: 'smoke@example.test', message: 'Synthetic smoke test only', brandSlug: 'reallyenglish', consent: true, submissionId: crypto.randomUUID(), sourcePath: '/', locale: 'en' }),
   });
   assert.equal(crossOrigin.status, 403);
   console.log('Smoke tests passed: health, primary brand, partner host mapping, demo lead, consent validation, cross-origin rejection.');
