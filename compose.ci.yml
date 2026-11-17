@@ -24,7 +24,7 @@ services:
   cms-db:
     image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
     environment:
-      POSTGRES_PASSWORD: ${TWENTY_DB_PASSWORD:?}
+      POSTGRES_PASSWORD: ${CMS_DB_PASSWORD:?}
       POSTGRES_DB: strapi
     mem_limit: 512m
     cpus: 1

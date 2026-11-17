@@ -32,6 +32,12 @@ jobs:
         run: |
           npm ci
           npm ci --prefix apps/cms
+      # Advisory reports remain production gates, never forced downgrades.
+      - name: Capture dependency advisory evidence
+        run: |
+          mkdir -p .ci/reports
+          npm audit --json > .ci/reports/audit-root.json || test "$?" -eq 1
+          npm audit --prefix apps/cms --json > .ci/reports/audit-cms.json || test "$?" -eq 1
       - name: Install pinned browser tooling on hosted runner
         run: |
           npm install --no-save --package-lock=false @playwright/test@1.65.1
@@ -49,7 +55,7 @@ jobs:
           node --input-type=module <<'JS'
           import {randomBytes} from 'node:crypto';
           import {appendFileSync} from 'node:fs';
-          for (const [key,format] of [['TWENTY_DB_PASSWORD','hex'],['ENCRYPTION_KEY','base64'],['APP_SECRET','hex']]) {
+          for (const [key,format] of [['TWENTY_DB_PASSWORD','hex'],['CMS_DB_PASSWORD','hex'],['ENCRYPTION_KEY','base64'],['APP_SECRET','hex']]) {
             const value=randomBytes(32).toString(format);
             console.log(`::add-mask::${value}`);
             appendFileSync(process.env.GITHUB_ENV,`${key}=${value}\n`);
@@ -67,14 +73,16 @@ jobs:
         run: node scripts/ci/run-stack.mjs
       - name: Inventory diagnostics (no source bodies)
         if: always()
-        run: node scripts/ci/report-inventory.mjs
+        run: |
+          node scripts/ci/report-inventory.mjs
+          node scripts/ci/report-coverage.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: full-site-evidence
           path: .ci/reports/
           include-hidden-files: true
-          retention-days: 3
+          retention-days: 7
       - name: Scoped teardown
         if: always()
         run: docker compose -f compose.ci.yml down --volumes --remove-orphans

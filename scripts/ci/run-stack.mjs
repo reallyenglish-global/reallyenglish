@@ -8,6 +8,7 @@ import { verifyContent } from './verify-content.mjs';
 import { verifyLeads } from './verify-leads.mjs';
 import { verifyBrowser } from './verify-browser.mjs';
 import { verifyWorker } from './verify-worker.mjs';
+import { verifyPublication } from './verify-publication.mjs';
 if(process.env.GITHUB_ACTIONS !== 'true') throw new Error('hosted_disposable_only');
 const root=process.cwd(), reports=resolve('.ci/reports');
 mkdirSync(reports,{recursive:true}); mkdirSync('.ci/private',{recursive:true,mode:0o700});
@@ -23,7 +24,7 @@ const twenty=JSON.parse(readFileSync('.ci/private/twenty.json','utf8')); secrets
 const proxy=http.createServer((req,res)=>{const upstream=http.request(new URL(req.url,twenty.base),{method:req.method,headers:{...req.headers,host:'localhost:3000'}},reply=>{res.writeHead(reply.statusCode,reply.headers);reply.pipe(res);});upstream.on('error',()=>{res.writeHead(502);res.end();});req.pipe(upstream);});
 await new Promise(r=>proxy.listen(3000,'127.0.0.1',r));
 const manifest=JSON.parse(readFileSync('.ci/content/manifest.json','utf8'));
-const env={HOST:'127.0.0.1',PORT:'1337',NODE_ENV:'production',CI:'true',DATABASE_CLIENT:'postgres',DATABASE_HOST:privateIP('cms-db'),DATABASE_NAME:'strapi',DATABASE_USERNAME:'postgres',DATABASE_PASSWORD:process.env.TWENTY_DB_PASSWORD,APP_KEYS:`${secret()},${secret()}`,API_TOKEN_SALT:secret(),ADMIN_JWT_SECRET:secret(),TRANSFER_TOKEN_SALT:secret(),JWT_SECRET:secret(),ENCRYPTION_KEY:secret(),CMS_READ_TOKEN:secret(),SEED_PUBLIC_CONTENT:'true',PUBLIC_CONTENT_MANIFEST:resolve('.ci/content/manifest.json'),PUBLIC_CONTENT_SEED_REPORT:resolve('.ci/reports/seed.json'),CMS_VERIFY_HOOK:'true',CMS_VERIFY_HOOK_REPORT:resolve('.ci/reports/cms-hook.json'),STRAPI_TELEMETRY_DISABLED:'true'};
+const env={HOST:'127.0.0.1',PORT:'1337',NODE_ENV:'production',CI:'true',DATABASE_CLIENT:'postgres',DATABASE_HOST:privateIP('cms-db'),DATABASE_NAME:'strapi',DATABASE_USERNAME:'postgres',DATABASE_PASSWORD:process.env.CMS_DB_PASSWORD,APP_KEYS:`${secret()},${secret()}`,API_TOKEN_SALT:secret(),ADMIN_JWT_SECRET:secret(),TRANSFER_TOKEN_SALT:secret(),JWT_SECRET:secret(),ENCRYPTION_KEY:secret(),CMS_READ_TOKEN:secret(),CMS_CI_WRITE_TOKEN:secret(),SEED_PUBLIC_CONTENT:'true',PUBLIC_CONTENT_MANIFEST:resolve('.ci/content/manifest.json'),PUBLIC_CONTENT_SEED_REPORT:resolve('.ci/reports/seed.json'),CMS_VERIFY_HOOK:'true',CMS_VERIFY_HOOK_REPORT:resolve('.ci/reports/cms-hook.json'),STRAPI_TELEMETRY_DISABLED:'true'};
 Object.assign(process.env,{PUBLIC_CONTENT_MANIFEST:env.PUBLIC_CONTENT_MANIFEST,CMS_VERIFY_HOOK_REPORT:env.CMS_VERIFY_HOOK_REPORT,CMS_API_URL:'http://127.0.0.1:1337',CMS_READ_TOKEN:env.CMS_READ_TOKEN,ASTRO_BASE_URL:'http://127.0.0.1:4321',TWENTY_BASE_URL:'http://127.0.0.1:3000',TWENTY_API_KEY:twenty.apiKey,LEAD_LOCALE:manifest.pages.find(p=>p.path==='/').locale});
 const astroEnv={HOST:'127.0.0.1',PORT:'4321',CRM_MODE:'twenty',BRAND_HOST_MAP:JSON.stringify({'127.0.0.1':'reallyenglish',localhost:'reallyenglish','partner.localhost':'partner-demo'}),PUBLIC_CONTENT_MANIFEST:env.PUBLIC_CONTENT_MANIFEST};
 let stage='cms';const report={sha:process.env.GITHUB_SHA,success:false,stages:{}};
@@ -33,6 +34,7 @@ try{
  const cmsReport=await verifyCms();if(!cmsReport.success)throw new Error('cms_verification_failed');report.stages.cms=true;
  stage='astro';let astro=start(['dist/server/entry.mjs'],root,astroEnv,'astro');await ready('http://127.0.0.1:4321/health',astro);
  const content=await verifyContent();if(!content.success)throw new Error('render_verification_failed');report.stages.content=true;
+ stage='publication';await verifyPublication(env.CMS_CI_WRITE_TOKEN);report.stages.publication=true;
  stage='crm';const crm=await verifyLeads();writeFileSync(resolve(reports,'crm.json'),JSON.stringify(crm,null,2));report.stages.crm=true;
  stage='browser';await verifyBrowser();report.stages.browser=true;
  stage='worker';await verifyWorker();report.stages.worker=true;
@@ -40,5 +42,5 @@ try{
  report.success=true;
 }catch(e){report.error={stage,message:e.message};console.error(JSON.stringify(report.error));process.exitCode=1;
  // Emit only bounded redacted startup diagnostics, never raw service/CRM logs.
- if(stage==='cms') {let log='';try{log=readFileSync('.ci/private/cms.log','utf8');}catch{}for(const s of secrets)log=log.replaceAll(s,'[secret]');log=log.replaceAll(process.env.TWENTY_DB_PASSWORD,'[secret]');console.error(log.slice(-6000));}
+ if(stage==='cms') {let log='';try{log=readFileSync('.ci/private/cms.log','utf8');}catch{}for(const s of secrets)log=log.replaceAll(s,'[secret]');for(const s of [process.env.TWENTY_DB_PASSWORD,process.env.CMS_DB_PASSWORD])if(s)log=log.replaceAll(s,'[secret]');console.error(log.slice(-6000));}
 }finally{for(const child of children)await stop(child);await new Promise(r=>proxy.close(r));writeFileSync(resolve(reports,'acceptance.json'),JSON.stringify(report,null,2));}

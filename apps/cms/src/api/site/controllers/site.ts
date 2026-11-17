@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {normalizeRoute,projectPage} from '../../../seed/content-contract';
 import type { Core } from '@strapi/strapi';
 
@@ -9,6 +10,27 @@ const timingSafeMatch = (actual: string, expected: string) => {
 };
 
 export default ({ strapi }: { strapi: Core.Strapi }) => ({
+  async ciPublication(ctx: any) {
+    if(process.env.CI !== 'true' || process.env.CMS_VERIFY_HOOK !== 'true')return ctx.notFound();
+    const token=process.env.CMS_CI_WRITE_TOKEN;
+    const supplied=String(ctx.request.headers.authorization || '').replace(/^Bearer\s+/i,'');
+    if(!token || !timingSafeMatch(supplied,token))return ctx.unauthorized();
+    const action=ctx.request.body?.action;
+    if(!['publish','draft-update','unpublish'].includes(action) || Object.keys(ctx.request.body).length!==1)return ctx.badRequest();
+    // No client-selected ID/path/content: mutate only the synthetic startup probe.
+    const hook=JSON.parse(await readFile(process.env.CMS_VERIFY_HOOK_REPORT!,'utf8'));
+    const probe=hook.draftOnly;
+    if(!hook.success || !probe?.path?.startsWith('/ci-draft-'))return ctx.badRequest();
+    const docs=strapi.documents('api::page.page');
+    const draft=await docs.findOne({documentId:probe.documentId,status:'draft'});
+    if(draft?.path!==probe.path || draft.externalKey!==probe.key)return ctx.badRequest();
+    if(action==='draft-update'){
+      const title=probe.sentinel+'_LIVE',contentHtml=`<p>${title}</p>`;
+      await docs.update({documentId:probe.documentId,data:{title,contentHtml,contentHash:crypto.createHash('sha256').update(contentHtml).digest('hex')}});
+    }else if(action==='publish')await docs.publish({documentId:probe.documentId});
+    else await docs.unpublish({documentId:probe.documentId});
+    ctx.body={ok:true};
+  },
   async page(ctx: any) {
     const token = process.env.CMS_READ_TOKEN;
     const supplied = String(ctx.request.headers.authorization || '').replace(/^Bearer\s+/i, '');
