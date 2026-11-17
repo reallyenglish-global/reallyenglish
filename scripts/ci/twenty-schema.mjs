@@ -11,16 +11,27 @@ export function leadFieldDefinition(objectMetadataId, name, type) {
   isNullable:name==='companyName',isUnique:name==='dedupKey',
   defaultValue:name==='companyName'?null:type==='TEXT'?"''":type==='BOOLEAN'?false:'now'};
 }
+export const isDeferredDdlRefusal = result => typeof result==='string' && /^\d+ deferred schema operation\(s\) are still running on workspace [a-f0-9-]+$/.test(result);
 export async function provisionLeadSchema(base, key) {
  const request=async(path,body)=>{
+  const deadline=Date.now()+180000;
+  for(;;){
   const response=await fetch(`${base}/rest/metadata/${path}`,{method:body?'POST':'GET',headers:{authorization:`Bearer ${key}`,'content-type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(60000)});
   if(!response.ok) {
    const result=await response.json().catch(()=>({}));
+   // Pinned schema-operation executor explicitly refuses the next migration while
+   // deferred DDL runs. Only this pre-mutation refusal is safe to retry; arbitrary
+   // 500s and validation errors are never suppressed or blindly replayed.
+   if(isDeferredDdlRefusal(result) && Date.now()<deadline){
+    console.log(JSON.stringify({stage:'schema-ddl-wait',path,field:body?.name}));
+    await new Promise(r=>setTimeout(r,2000));continue;
+   }
    const messages=[result.message,...(result.errors||[]).map(e=>e.message)].filter(x=>typeof x==='string').map(x=>x.replace(/[A-Za-z0-9_.-]{32,}/g,'[redacted]').slice(0,300));
    console.error(JSON.stringify({stage:'metadata',method:body?'POST':'GET',path,status:response.status,field:body?.name,type:body?.type,messages,responseShape:JSON.stringify(result).replace(/[A-Za-z0-9_.-]{32,}/g,'[redacted]').slice(0,5000)}));
    throw new Error(`metadata_${path}_${response.status}`);
   }
   return response.json();
+  }
  };
  const unwrap=(value,plural)=>{
   const candidate=value.data?.[plural] ?? value.data ?? value[plural] ?? value;

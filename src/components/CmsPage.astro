@@ -12,6 +12,10 @@ const html = sanitizeContent(page.contentHtml).replaceAll('href="https://www.rea
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{page.title}</title>
   <meta name="description" content={page.description} />
+  <meta property="og:title" content={page.title} />
+  <meta property="og:description" content={page.description} />
+  <meta property="og:url" content={page.canonical} />
+  <meta property="og:type" content="website" />
   <link rel="canonical" href={page.canonical} />
   {page.alternates.map((alt) => <link rel="alternate" hreflang={alt.locale} href={`https://www.reallyenglish.com${alt.path}`} />)}
 </head>
@@ -25,7 +29,10 @@ const html = sanitizeContent(page.contentHtml).replaceAll('href="https://www.rea
 <style is:global>
 body {font-family:system-ui,sans-serif;color:#16362e;background:#fafcfb;margin:0;line-height:1.7}
 header,main,footer,#contact {max-width:72rem;margin:auto;padding:1.5rem}
-header {display:flex;justify-content:space-between;border-bottom:1px solid #ddd}
+header {display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;border-bottom:1px solid #ddd}
+nav {display:flex;flex-wrap:wrap;gap:.5rem 1rem;max-width:100%}
+main,footer {overflow-wrap:anywhere} img {max-width:100%;height:auto}
+input,textarea {max-width:100%;min-width:0}
 #source-content h1 {font-size:2.4rem;line-height:1.2} #source-content h2 {font-size:1.8rem}
 #source-content p,#source-content ul,#source-content table {margin:1rem 0}
 #source-content ul {list-style:disc;padding-left:2rem} #source-content ol {list-style:decimal;padding-left:2rem}

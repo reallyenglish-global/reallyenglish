@@ -6,6 +6,8 @@ import http from 'node:http';
 import { verifyCms } from './verify-cms.mjs';
 import { verifyContent } from './verify-content.mjs';
 import { verifyLeads } from './verify-leads.mjs';
+import { verifyBrowser } from './verify-browser.mjs';
+import { verifyWorker } from './verify-worker.mjs';
 if(process.env.GITHUB_ACTIONS !== 'true') throw new Error('hosted_disposable_only');
 const root=process.cwd(), reports=resolve('.ci/reports');
 mkdirSync(reports,{recursive:true}); mkdirSync('.ci/private',{recursive:true,mode:0o700});
@@ -32,6 +34,8 @@ try{
  stage='astro';let astro=start(['dist/server/entry.mjs'],root,astroEnv,'astro');await ready('http://127.0.0.1:4321/health',astro);
  const content=await verifyContent();if(!content.success)throw new Error('render_verification_failed');report.stages.content=true;
  stage='crm';const crm=await verifyLeads();writeFileSync(resolve(reports,'crm.json'),JSON.stringify(crm,null,2));report.stages.crm=true;
+ stage='browser';await verifyBrowser();report.stages.browser=true;
+ stage='worker';await verifyWorker();report.stages.worker=true;
  stage='crm-outage';await stop(astro);astro=start(['dist/server/entry.mjs'],root,{...astroEnv,TWENTY_BASE_URL:'http://127.0.0.1:1'},'astro-outage');await ready('http://127.0.0.1:4321/health',astro);const outage=await verifyLeads({unavailable:true});writeFileSync(resolve(reports,'crm-outage.json'),JSON.stringify(outage,null,2));report.stages.outage=true;
  report.success=true;
 }catch(e){report.error={stage,message:e.message};console.error(JSON.stringify(report.error));process.exitCode=1;

@@ -32,6 +32,10 @@ jobs:
         run: |
           npm ci
           npm ci --prefix apps/cms
+      - name: Install pinned browser tooling on hosted runner
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.65.1
+          npx playwright install --with-deps chromium
       - name: Focused tests
         run: node --test tests/content/*.test.mjs tests/lead-endpoint.test.mjs
       - name: Complete public-source inventory
