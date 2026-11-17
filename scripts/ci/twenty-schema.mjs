@@ -7,7 +7,12 @@ const definitions = {
 export async function provisionLeadSchema(base, key) {
  const request=async(path,body)=>{
   const response=await fetch(`${base}/rest/metadata/${path}`,{method:body?'POST':'GET',headers:{authorization:`Bearer ${key}`,'content-type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(60000)});
-  if(!response.ok) throw new Error(`metadata_${path}_${response.status}`);
+  if(!response.ok) {
+   const result=await response.json().catch(()=>({}));
+   const messages=[result.message,...(result.errors||[]).map(e=>e.message)].filter(x=>typeof x==='string').map(x=>x.replace(/[A-Za-z0-9_.-]{32,}/g,'[redacted]').slice(0,300));
+   console.error(JSON.stringify({stage:'metadata',method:body?'POST':'GET',path,status:response.status,messages}));
+   throw new Error(`metadata_${path}_${response.status}`);
+  }
   return response.json();
  };
  const unwrap=(value,plural)=>{

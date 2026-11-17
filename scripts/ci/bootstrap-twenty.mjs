@@ -49,8 +49,8 @@ try {
  if(!response.ok) throw new Error(`metadata_http_${response.status}`);
  const metadata = await response.json();
  stage='lead_schema';
- const schema = await provisionLeadSchema(base,apiKey);
- await provisionLeadSchema(base,apiKey); // Idempotency on the same workspace.
+ const schema = await provisionLeadSchema(base,access);
+ await provisionLeadSchema(base,access); // Idempotency on the same workspace.
  mkdirSync('.ci/private',{recursive:true,mode:0o700});
  writeFileSync('.ci/private/twenty.json',JSON.stringify({apiKey,base,workspaceId:workspace.id}),{mode:0o600});
  console.log(JSON.stringify({stage:'bootstrap_complete',workspaceId:workspace.id,metadataResponseKeys:Object.keys(metadata),fullSiteAcceptance:false}));
