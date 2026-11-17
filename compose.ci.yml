@@ -6,6 +6,7 @@ x-twenty: &twenty
     PG_DATABASE_URL: postgres://postgres:${TWENTY_DB_PASSWORD:?}@twenty-db:5432/default
     REDIS_URL: redis://redis:6379
     SERVER_URL: http://localhost:3000
+    AUTH_COOKIE_ALLOWED_ORIGINS: http://localhost:3000
     ENCRYPTION_KEY: ${ENCRYPTION_KEY:?}
     APP_SECRET: ${APP_SECRET:?}
     STORAGE_TYPE: local

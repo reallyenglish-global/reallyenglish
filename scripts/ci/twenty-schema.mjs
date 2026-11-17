@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 const definitions = {
  firstName:'TEXT',lastName:'TEXT',email:'TEXT',companyName:'TEXT',message:'TEXT',brandSlug:'TEXT',
  sourceUrl:'TEXT',sourcePath:'TEXT',locale:'TEXT',consent:'BOOLEAN',consentAt:'DATE_TIME',
- submissionId:'TEXT',dedupKey:'TEXT',
+ submissionId:'TEXT',dedupKey:'TEXT',consentVersion:'TEXT',payloadHash:'TEXT',
 };
 export async function provisionLeadSchema(base, key) {
  const request=async(path,body)=>{
