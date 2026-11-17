@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
-const base = 'http://localhost:3000';
+const base = 'http://127.0.0.1:3000';
 const mask = value => { if (process.env.GITHUB_ACTIONS) console.log(`::add-mask::${value}`); return value; };
 let stage = 'signup';
 async function gql(query, variables, token) {
@@ -44,4 +44,4 @@ try {
  mkdirSync('.ci/private',{recursive:true,mode:0o700});
  writeFileSync('.ci/private/twenty.json',JSON.stringify({apiKey,workspaceId:workspace.id}),{mode:0o600});
  console.log(JSON.stringify({stage:'bootstrap_complete',workspaceId:workspace.id,metadataResponseKeys:Object.keys(metadata),fullSiteAcceptance:false}));
-} catch(error) { console.error(JSON.stringify({stage,error:error.message})); process.exitCode=1; }
+} catch(error) { console.error(JSON.stringify({stage,error:error.message,cause:error.cause?.code})); process.exitCode=1; }
