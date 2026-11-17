@@ -4,12 +4,14 @@ const definitions = {
  sourceUrl:'TEXT',sourcePath:'TEXT',locale:'TEXT',consent:'BOOLEAN',consentAt:'DATE_TIME',
  submissionId:'TEXT',dedupKey:'TEXT',consentVersion:'TEXT',payloadHash:'TEXT',
 };
-// Pinned Twenty flat-field validator rejects non-nullable fields with a null
-// default. TEXT literals use SQL quoting; DATE_TIME accepts the `now` function.
+// Pinned Twenty d690a8c: unique scalar indexes reject defined defaults.
+// Creation permits non-null TEXT without a default; the null-default guard in
+// flat-field-metadata-validator.service.ts applies to UPDATE, not CREATE.
+// Never mutate dedupKey's constraints or add a shared empty-string default.
 export function leadFieldDefinition(objectMetadataId, name, type) {
  return {objectMetadataId,name,label:name.replace(/([A-Z])/g,' $1'),type,
   isNullable:name==='companyName',isUnique:name==='dedupKey',
-  defaultValue:name==='companyName'?null:type==='TEXT'?"''":type==='BOOLEAN'?false:'now'};
+  ...(name==='dedupKey'?{}:{defaultValue:name==='companyName'?null:type==='TEXT'?"''":type==='BOOLEAN'?false:'now'})};
 }
 export const isDeferredDdlRefusal = result => typeof result==='string' && /^\d+ deferred schema operation\(s\) are still running on workspace [a-f0-9-]+$/.test(result);
 export async function provisionLeadSchema(base, key) {
@@ -67,7 +69,7 @@ export async function provisionLeadSchema(base, key) {
   await request('fields',leadFieldDefinition(object.id,name,type));
  }
  fields=(await list('fields','fields')).filter(f=>f.objectMetadataId===object.id);
- for(const [name,type] of Object.entries(definitions)) {const f=fields.find(f=>f.name===name);assert.equal(f?.type,type);assert.equal(f?.isUnique,name==='dedupKey');}
+ for(const [name,type] of Object.entries(definitions)) {const f=fields.find(f=>f.name===name);assert.equal(f?.type,type);assert.equal(f?.isUnique,name==='dedupKey');assert.equal(f?.isNullable,name==='companyName');if(name==='dedupKey')assert.equal(f.defaultValue ?? null,null);}
  for(let i=0;i<30;i++) {
   const response=await fetch(`${base}/rest/websiteLeads`,{headers:{authorization:`Bearer ${key}`},signal:AbortSignal.timeout(10000)});
   if(response.ok) return {objectId:object.id,fields:Object.keys(definitions)};

@@ -6,11 +6,15 @@ test('only explicit deferred-DDL pre-mutation refusal is retryable',()=>{
  for(const value of [{message:'Internal Server Error'},'Internal Server Error','already created','Default value cannot be null',null])assert.equal(isDeferredDdlRefusal(value),false);
 });
 test('Twenty required fields carry type-compatible non-null defaults',()=>{
- for(const [name,type,value] of [['firstName','TEXT',"''"],['dedupKey','TEXT',"''"],['consent','BOOLEAN',false],['consentAt','DATE_TIME','now']]){
+ for(const [name,type,value] of [['firstName','TEXT',"''"],['consent','BOOLEAN',false],['consentAt','DATE_TIME','now']]){
   const f=leadFieldDefinition('object',name,type);
   assert.equal(f.isNullable,false);assert.equal(f.defaultValue,value);
   assert.equal(f.isUnique,name==='dedupKey');
  }
+ const unique=leadFieldDefinition('object','dedupKey','TEXT');
+ assert.equal(unique.isNullable,false);
+ assert.equal(unique.isUnique,true);
+ assert.equal(Object.hasOwn(unique,'defaultValue'),false,'unique scalar defaults are rejected by pinned Twenty');
  const optional=leadFieldDefinition('object','companyName','TEXT');
  assert.equal(optional.isNullable,true);assert.equal(optional.defaultValue,null);
 });
