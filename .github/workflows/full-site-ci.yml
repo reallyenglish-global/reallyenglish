@@ -1,0 +1,52 @@
+name: Full-site disposable integration
+on:
+  push:
+    branches: [feat/full-site-cms-crm-ci]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: full-site-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  bootstrap-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: re-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Runtime and capacity
+        run: |
+          git rev-parse HEAD
+          df -h .
+          free -m
+          docker version
+          test "$(df --output=avail -B1 . | tail -1)" -ge 10737418240
+      - name: Generate disposable secrets
+        run: |
+          node --input-type=module <<'JS'
+          import {randomBytes} from 'node:crypto';
+          import {appendFileSync} from 'node:fs';
+          for (const [key,format] of [['TWENTY_DB_PASSWORD','hex'],['ENCRYPTION_KEY','base64'],['APP_SECRET','hex']]) {
+            const value=randomBytes(32).toString(format);
+            console.log(`::add-mask::${value}`);
+            appendFileSync(process.env.GITHUB_ENV,`${key}=${value}\n`);
+          }
+          JS
+      - name: Pull pinned disposable services
+        run: docker compose -f compose.ci.yml pull --quiet
+      - name: Migrate and start real Twenty server and worker
+        run: |
+          test "$(df --output=avail -B1 . | tail -1)" -ge 3221225472
+          docker compose -f compose.ci.yml up -d --wait --wait-timeout 720
+      - name: Credential-free workspace bootstrap and authenticated metadata
+        run: node scripts/ci/bootstrap-twenty.mjs
+      - name: Scoped teardown
+        if: always()
+        run: docker compose -f compose.ci.yml down --volumes --remove-orphans

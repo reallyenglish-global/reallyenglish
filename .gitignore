@@ -1,3 +1,6 @@
+# Disposable CI content, reports and generated credentials (never commit)
+.ci/
+
 # build output
 dist/
 # generated types
