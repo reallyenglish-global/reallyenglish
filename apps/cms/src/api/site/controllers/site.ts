@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import {normalizeRoute,projectPage} from '../../../seed/content-contract';
 import type { Core } from '@strapi/strapi';
 
 const timingSafeMatch = (actual: string, expected: string) => {
@@ -18,12 +19,12 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       return ctx.badRequest('invalid_query');
     }
     const result = await strapi.documents('api::page.page').findFirst({
-      filters: { path, 'brand.slug': brand }, status: 'published',
+      filters: { path, brand: {slug:brand} }, status: 'published',
       fields: ['path', 'locale', 'title', 'description', 'canonical', 'alternates', 'contentHtml', 'contentHash', 'externalKey', 'sourceUrl', 'slug'],
     });
     if (!result) return ctx.notFound();
     ctx.set('Cache-Control', 'no-store');
-    ctx.body = result;
+    ctx.body = projectPage(result);
   },
   async brand(ctx: any) {
     const token = process.env.CMS_READ_TOKEN;

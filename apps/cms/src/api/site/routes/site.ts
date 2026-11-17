@@ -1,14 +1,4 @@
-export default [
-  {
-    method: 'GET',
-    path: '/api/site/page',
-    handler: 'page.site',
-    config: { auth: false, policies: [] },
-  },
-  {
-    method: 'GET',
-    path: '/api/site/brand',
-    handler: 'brand.site',
-    config: { auth: false, policies: [] },
-  },
-];
+export default {routes: [
+  {method:'GET',path:'/site/page',handler:'site.page',config:{auth:false}},
+  {method:'GET',path:'/site/brand',handler:'site.brand',config:{auth:false}},
+]};

@@ -1,3 +1,4 @@
+import { provisionLeadSchema } from './twenty-schema.mjs';
 import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -10,11 +11,11 @@ console.log(JSON.stringify({stage:'transport',sandboxIP:network.IPAddress,ports:
 const mask = value => { if (process.env.GITHUB_ACTIONS) console.log(`::add-mask::${value}`); return value; };
 let stage = 'signup';
 async function gql(query, variables, token) {
-  const response = await fetch(`${base}/graphql`, {method:'POST', headers:{'content-type':'application/json', ...(token ? {authorization:`Bearer ${token}`} : {})}, body:JSON.stringify({query,variables}), signal:AbortSignal.timeout(300000)});
+  const response = await fetch(`${base}/graphql`, {method:'POST', headers:{host:'localhost:3000',origin:'http://localhost:3000','content-type':'application/json', ...(token ? {authorization:`Bearer ${token}`} : {})}, body:JSON.stringify({query,variables}), signal:AbortSignal.timeout(300000)});
   const result = await response.json();
   if (!response.ok || result.errors?.length) {
     // Only schema/error codes are safe to log, never API bodies or tokens.
-    console.error(JSON.stringify({stage,status:response.status,codes:result.errors?.map(e=>e.extensions?.code || 'graphql_error')}));
+    console.error(JSON.stringify({stage,status:response.status,codes:result.errors?.map(e=>e.extensions?.code || 'graphql_error'),messages:result.errors?.map(e=>e.message.replace(/[A-Za-z0-9_-]{32,}/g,'[redacted]').slice(0,240))}));
     throw new Error(`bootstrap_${stage}_failed`);
   }
   return result.data;
@@ -46,7 +47,10 @@ try {
  const response = await fetch(`${base}/rest/metadata/objects`,{headers:{authorization:`Bearer ${apiKey}`},signal:AbortSignal.timeout(30000)});
  if(!response.ok) throw new Error(`metadata_http_${response.status}`);
  const metadata = await response.json();
+ stage='lead_schema';
+ const schema = await provisionLeadSchema(base,apiKey);
+ await provisionLeadSchema(base,apiKey); // Idempotency on the same workspace.
  mkdirSync('.ci/private',{recursive:true,mode:0o700});
- writeFileSync('.ci/private/twenty.json',JSON.stringify({apiKey,workspaceId:workspace.id}),{mode:0o600});
+ writeFileSync('.ci/private/twenty.json',JSON.stringify({apiKey,base,workspaceId:workspace.id}),{mode:0o600});
  console.log(JSON.stringify({stage:'bootstrap_complete',workspaceId:workspace.id,metadataResponseKeys:Object.keys(metadata),fullSiteAcceptance:false}));
 } catch(error) { console.error(JSON.stringify({stage,error:error.message,cause:error.cause?.code})); process.exitCode=1; }

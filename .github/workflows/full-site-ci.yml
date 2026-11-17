@@ -33,8 +33,20 @@ jobs:
       - run: npm ci
       - run: node --test tests/content/*.test.mjs
       - run: node scripts/content/import-public-site.mjs --out .ci/content/manifest.json
+      - name: Inventory diagnostics (no source bodies)
+        if: always()
+        run: node scripts/ci/report-inventory.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: inventory-report
+          path: .ci/reports/inventory.json
+          include-hidden-files: true
+          retention-days: 3
       - run: npm run build
+        if: always()
       - name: Compile CMS
+        if: always()
         run: |
           npm ci --prefix apps/cms
           npm run build --prefix apps/cms
