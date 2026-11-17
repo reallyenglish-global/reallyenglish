@@ -1,3 +1,4 @@
+import http from 'node:http';
 import { createHash, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
@@ -40,7 +41,13 @@ export async function verifyLeads({
   const submit = async (lead, options = {}) => {
     const requestHeaders = { 'Content-Type': 'application/json', Origin: site.origin, ...options.headers };
     if (options.noOrigin) delete requestHeaders.Origin;
-    const response = await fetch(new URL('/api/leads', site), {
+    // Node24 fetch rewrites Host to its URL authority. Use raw HTTP for hostile
+    // authority probes so the wire request actually carries the tested header.
+    const response = options.headers?.Host ? await new Promise((resolve,reject)=>{
+      const req=http.request(new URL('/api/leads',site),{method:'POST',headers:requestHeaders},res=>{
+        const chunks=[];res.on('data',b=>chunks.push(b));res.on('end',()=>resolve(new Response(Buffer.concat(chunks),{status:res.statusCode})));
+      });req.on('error',reject);req.setTimeout(30000,()=>req.destroy(new Error('host_probe_timeout')));req.end(options.raw ?? JSON.stringify(lead));
+    }) : await fetch(new URL('/api/leads', site), {
       method: 'POST', headers: requestHeaders, body: options.raw ?? JSON.stringify(lead),
       redirect: 'manual', signal: AbortSignal.timeout(30000),
     });
