@@ -39,7 +39,7 @@ export function sanitizeContent(html: string): string {
     nonTextTags: ['script','style','textarea','option','noscript','template','svg','math','iframe','object','embed','form'],
     transformTags: {
       a: (tagName, attribs) => {
-        const attributes = { ...attribs, rel: 'noopener noreferrer' };
+        const attributes: Record<string, string> = { ...attribs, rel: 'noopener noreferrer' };
         if (attributes.href && !safeReference(attributes.href)) delete attributes.href;
         return { tagName, attribs: attributes };
       },

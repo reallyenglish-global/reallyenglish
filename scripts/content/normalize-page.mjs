@@ -59,6 +59,14 @@ export function normalizePage(html, sourceInput) {
     if (candidates.length > 1) throw new Error('content_region_ambiguous');
     if (candidates.length) { selected = candidates; break; }
   }
+  // Legacy HubSpot templates place course/legal sections in the footer wrapper.
+  // Preserve that substantive region, but separate the observed shared .hhs-footer.
+  const footerWrapper = $('.footer-container-wrapper').clone();
+  footerWrapper.find('.hhs-footer,footer').remove();
+  const substantiveFooter = footerWrapper.find('h1,h2,h3').length && footerWrapper.text().trim();
+  if (substantiveFooter) {
+    selected = $('<div></div>').append(selected?.clone()).append(footerWrapper);
+  }
   if (!selected?.length || !selected.text().trim()) throw new Error('content_region_empty');
   const linksFor = (region) => region.find('a[href]').toArray().map((el) => {
     const href = $(el).attr('href');
@@ -80,7 +88,7 @@ export function normalizePage(html, sourceInput) {
     contentHtml, contentHash: hash(contentHtml), text: clean.text().trim(),
     headings: clean('h1,h2,h3,h4,h5,h6').toArray().map((el) => ({ level: Number(el.tagName.slice(1)), text: clean(el).text().trim() })),
     links: linksFor(selected), navigation: linksFor($('header,nav,.header-container-wrapper')),
-    footer: { html: sanitizeHtml($('footer,.footer-container-wrapper').toArray().map((el) => $(el).html()).join('\n'), sanitizerOptions), links: linksFor($('footer,.footer-container-wrapper')) },
+    footer: { html: sanitizeHtml($('footer,.hhs-footer').toArray().map((el) => $(el).html()).join('\n'), sanitizerOptions), links: linksFor($('footer,.hhs-footer')) },
     requiresLeadForm, source: { url: source.href, fetchedAt: new Date().toISOString(), rawHash: hash(html) }, assets,
   };
 }

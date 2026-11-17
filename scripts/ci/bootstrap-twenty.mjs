@@ -22,7 +22,8 @@ async function gql(query, variables, token) {
 }
 try {
  const email = `ci-${process.env.GITHUB_RUN_ID || Date.now()}@example.invalid`;
- const password = mask(`${randomBytes(24).toString('hex')}Aa!7`);
+ // Pinned auth.util.ts PASSWORD_REGEX is /^.{8,50}$/; 24 hex bytes + suffix exceeded 50.
+ const password = mask(`${randomBytes(20).toString('hex')}Aa!7`);
  const signup = await gql('mutation($email:String!,$password:String!){signUp(email:$email,password:$password){tokens{accessOrWorkspaceAgnosticToken{token}}}}',{email,password});
  const agnostic = mask(signup.signUp.tokens.accessOrWorkspaceAgnosticToken.token);
  stage='workspace';
