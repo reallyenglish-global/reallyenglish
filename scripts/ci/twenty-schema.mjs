@@ -21,21 +21,34 @@ export async function provisionLeadSchema(base, key) {
   if(candidate.edges) return candidate.edges.map(e=>e.node);
   throw new Error(`metadata_shape_${plural}:${Object.keys(value).join(',')}`);
  };
- let objects=unwrap(await request('objects'),'objects');
+ const requestOne=request;
+ const list=async(path,plural)=>{
+  const rows=[];let cursor;
+  for(let page=0;page<50;page++){
+   const value=await requestOne(`${path}?limit=100${cursor?'&starting_after='+encodeURIComponent(cursor):''}`);
+   const batch=unwrap(value,plural);rows.push(...batch);
+   const info=value.pageInfo || value.data?.pageInfo;
+   if(info?.hasNextPage===false || (!info && batch.length<100)) return rows;
+   const next=info?.endCursor || batch.at(-1)?.id;
+   if(!next || next===cursor)throw new Error('metadata_pagination_stalled');
+   cursor=next;
+  }throw new Error('metadata_pagination_limit');
+ };
+ let objects=await list('objects','objects');
  let object=objects.find(o=>o.nameSingular==='websiteLead');
  if(!object) {
   await request('objects',{nameSingular:'websiteLead',namePlural:'websiteLeads',labelSingular:'Website Lead',labelPlural:'Website Leads',skipNameField:false});
-  objects=unwrap(await request('objects'),'objects'); object=objects.find(o=>o.nameSingular==='websiteLead');
+  objects=await list('objects','objects'); object=objects.find(o=>o.nameSingular==='websiteLead');
  }
  assert.ok(object?.id,'object_readback');
  assert.equal(object.namePlural,'websiteLeads');
- let fields=unwrap(await request('fields'),'fields').filter(f=>f.objectMetadataId===object.id);
+ let fields=(await list('fields','fields')).filter(f=>f.objectMetadataId===object.id);
  for(const [name,type] of Object.entries(definitions)) {
   const found=fields.find(f=>f.name===name);
   if(found) {assert.equal(found.type,type);continue;}
   await request('fields',{objectMetadataId:object.id,name,label:name.replace(/([A-Z])/g,' $1'),type,isNullable:name==='companyName',isUnique:name==='dedupKey'});
  }
- fields=unwrap(await request('fields'),'fields').filter(f=>f.objectMetadataId===object.id);
+ fields=(await list('fields','fields')).filter(f=>f.objectMetadataId===object.id);
  for(const [name,type] of Object.entries(definitions)) {const f=fields.find(f=>f.name===name);assert.equal(f?.type,type);assert.equal(f?.isUnique,name==='dedupKey');}
  for(let i=0;i<30;i++) {
   const response=await fetch(`${base}/rest/websiteLeads`,{headers:{authorization:`Bearer ${key}`},signal:AbortSignal.timeout(10000)});

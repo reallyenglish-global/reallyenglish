@@ -55,6 +55,7 @@ export interface PublicPage {
   path: string; locale: string; title: string; description: string; canonical: string;
   alternates: Array<{ locale: string; path: string }>;
   contentHtml: string; contentHash: string; externalKey: string; sourceUrl: string;
+  navigation: Array<{text:string;href:string}>; footer: {html:string};
 }
 export function projectPage(value: any): PublicPage {
   if (!value || typeof value.path !== 'string' || normalizeRoute(value.path) !== value.path || !isLocale(value.locale) ||
@@ -69,5 +70,7 @@ export function projectPage(value: any): PublicPage {
     path: value.path, locale: value.locale, title: value.title, description: value.description,
     canonical: value.canonical, alternates: value.alternates.map((a: any) => ({ locale: a.locale, path: a.path })),
     contentHtml: value.contentHtml, contentHash: value.contentHash, externalKey: value.externalKey, sourceUrl: value.sourceUrl,
+    navigation: Array.isArray(value.navigation) ? value.navigation.filter((x:any)=>x && typeof x.text==='string' && typeof x.href==='string' && safeReference(x.href)).map((x:any)=>({text:x.text,href:x.href})) : [],
+    footer: {html:sanitizeContent(typeof value.footer?.html === 'string' ? value.footer.html : '')},
   };
 }

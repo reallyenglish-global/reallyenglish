@@ -32,7 +32,7 @@ test('lead endpoint contract (unit doubles, not live Twenty evidence)', async t 
     });
     await t.test('host and Origin fail closed; forwarded headers do not select a tenant', async () => {
       for (const url of ['http://unknown.invalid/api/leads', 'http://localhost.evil.invalid/api/leads']) assert.equal((await submit(lead(), { url, headers: { 'X-Forwarded-Host': 'localhost' } })).status, 421);
-      assert.equal((await submit(lead(), { headers: { Host: 'partner.localhost:4321' } })).status, 421);
+      assert.equal((await submit(lead(), { headers: { Host: 'partner.localhost:4321' } })).status, 403); // Raw host and Origin must agree even when adapter URL differs.
       assert.equal((await submit(lead(), { headers: { Origin: 'https://evil.invalid' } })).status, 403);
       assert.equal((await submit(lead(), { noOrigin: true })).status, 403);
       assert.equal((await submit(lead({ brandSlug: 'partner-demo' }))).status, 400);

@@ -20,7 +20,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     }
     const result = await strapi.documents('api::page.page').findFirst({
       filters: { path, brand: {slug:brand} }, status: 'published',
-      fields: ['path', 'locale', 'title', 'description', 'canonical', 'alternates', 'contentHtml', 'contentHash', 'externalKey', 'sourceUrl', 'slug'],
+      fields: ['path', 'locale', 'title', 'description', 'canonical', 'alternates', 'contentHtml', 'contentHash', 'externalKey', 'sourceUrl', 'slug', 'navigation', 'footer'],
     });
     if (!result) return ctx.notFound();
     ctx.set('Cache-Control', 'no-store');

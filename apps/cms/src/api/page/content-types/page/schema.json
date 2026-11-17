@@ -16,6 +16,8 @@
     "sourceRawHash": { "type": "string", "required": true },
     "contentHash": { "type": "string", "required": true },
     "assets": { "type": "json" },
+    "navigation": { "type": "json" },
+    "footer": { "type": "json" },
     "slug": { "type": "string", "required": true },
     "eyebrow": { "type": "string" }, "heroTitle": { "type": "string" },
     "heroBody": { "type": "text" },

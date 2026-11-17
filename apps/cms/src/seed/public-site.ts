@@ -8,6 +8,7 @@ type ManifestPage = {
   canonical: string; alternates: unknown[]; contentHtml: string; contentHash: string;
   source: { url: string; fetchedAt: string; rawHash: string };
   assets: unknown[];
+  navigation: unknown[]; footer: {html:string;links:unknown[]};
 };
 
 function validPage(row: unknown): row is ManifestPage {
@@ -57,6 +58,7 @@ export async function seedPublicContent(strapi: any) {
       description: validated.description, canonical: validated.canonical, alternates: validated.alternates,
       contentHtml: validated.contentHtml, sourceUrl: validated.sourceUrl, sourceFetchedAt: item.source.fetchedAt,
       sourceRawHash: item.source.rawHash, contentHash: validated.contentHash, assets: item.assets,
+      navigation: item.navigation, footer: item.footer,
       slug: crypto.createHash('sha256').update(validated.path).digest('hex').slice(0, 32),
       brand: { connect: [{ documentId: brand.documentId }] },
     };

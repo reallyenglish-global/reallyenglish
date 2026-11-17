@@ -16,10 +16,10 @@ const html = sanitizeContent(page.contentHtml).replaceAll('href="https://www.rea
   {page.alternates.map((alt) => <link rel="alternate" hreflang={alt.locale} href={`https://www.reallyenglish.com${alt.path}`} />)}
 </head>
 <body>
-  <header><a href="/">ReallyEnglish</a><nav aria-label="Main"><a href="/">Home</a> <a href="/contact-us">Contact</a></nav></header>
+  <header><a href="/">ReallyEnglish</a><nav aria-label="Main">{page.navigation.map((link) => <a href={link.href.replace('https://www.reallyenglish.com/','/')}>{link.text}</a>)}</nav></header>
   <main id="source-content" data-content-hash={page.contentHash} data-key={page.externalKey} set:html={html} />
   <section id="contact"><h2>Contact ReallyEnglish</h2><LeadForm brandSlug="reallyenglish" brandName="ReallyEnglish" /></section>
-  <footer>Public-source prototype — editorial and production approval pending.</footer>
+  <footer><div set:html={page.footer.html.replaceAll('href="https://www.reallyenglish.com/', 'href="/')} />Public-source prototype — editorial and production approval pending.</footer>
 </body>
 </html>
 <style is:global>

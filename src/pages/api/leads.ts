@@ -52,10 +52,10 @@ export const POST: APIRoute = async (context: APIContext) => {
   // Never consult forwarded headers, body/query tenant selectors or suffix matches.
   const host = request.headers.get('host') ?? requestUrl.host;
   const brand = configuredBrand(host);
-  if (!brand || host.toLowerCase() !== requestUrl.host.toLowerCase()) {
-    if (process.env.CI === 'true') console.error(JSON.stringify({stage:'host-check',host,urlHost:requestUrl.host}));
-    return json({ error: 'Request rejected.' }, 421);
-  }
+  if (!brand) return json({ error: 'Request rejected.' }, 421);
+  // Astro's Node adapter normalizes the request URL hostname to localhost.
+  // Use only the exact configured raw Host, never forwarded host/proto headers.
+  requestUrl.host = host;
   if (request.headers.get('origin') !== requestUrl.origin) return json({ error: 'Request rejected.' }, 403);
   let address = 'unavailable';
   try { address = context.clientAddress || address; } catch { /* No forwarded-IP fallback. */ }
