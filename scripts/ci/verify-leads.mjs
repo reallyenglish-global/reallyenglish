@@ -109,7 +109,10 @@ export async function verifyLeads({
     ['long-field', { firstName: 'x'.repeat(81) }, {}, 400],
     ['malformed', {}, { raw: '{' }, 400],
     ['array', {}, { raw: '[]' }, 400],
-    ['content-type', {}, { headers: { 'Content-Type': 'text/plain' } }, 415],
+    // Astro's outer CSRF guard rejects non-JSON form media before our 415
+    // endpoint check (adapter URL uses localhost while wire authority is127.0.0.1).
+    // Keep that guard enabled and assert rejection plus unchanged CRM rows below.
+    ['framework-csrf-content-type', {}, { headers: { 'Content-Type': 'text/plain' } }, 403],
     ['body-limit', { message: 'x'.repeat(17000) }, {}, 413],
     ['honeypot', { website: 'https://bot.invalid' }, {}, 202],
   ];
