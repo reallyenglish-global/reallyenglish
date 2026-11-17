@@ -22,6 +22,10 @@ export async function verifyLeads({
     const dedupKey = hash(`reallyenglish\0${submissionId}`), url = new URL(crmUrl);
     url.search = new URLSearchParams({ filter: `dedupKey[eq]:${dedupKey}`, limit: '2' }).toString();
     const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(15000) });
+    if (!response.ok) {
+      const diagnostic=await response.json().catch(()=>({}));
+      console.error(JSON.stringify({stage:'crm-read',status:response.status,diagnostic:JSON.stringify(diagnostic).replace(/[A-Za-z0-9_.-]{32,}/g,'[redacted]').slice(0,3000)}));
+    }
     check(response.ok, `crm_read_status_${response.status}`);
     const rows = (await response.json()).data?.websiteLeads;
     check(Array.isArray(rows) && rows.every(row => row.dedupKey === dedupKey), 'crm_filtered_read_shape');

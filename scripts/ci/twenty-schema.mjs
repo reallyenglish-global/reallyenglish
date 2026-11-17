@@ -4,6 +4,13 @@ const definitions = {
  sourceUrl:'TEXT',sourcePath:'TEXT',locale:'TEXT',consent:'BOOLEAN',consentAt:'DATE_TIME',
  submissionId:'TEXT',dedupKey:'TEXT',consentVersion:'TEXT',payloadHash:'TEXT',
 };
+// Pinned Twenty flat-field validator rejects non-nullable fields with a null
+// default. TEXT literals use SQL quoting; DATE_TIME accepts the `now` function.
+export function leadFieldDefinition(objectMetadataId, name, type) {
+ return {objectMetadataId,name,label:name.replace(/([A-Z])/g,' $1'),type,
+  isNullable:name==='companyName',isUnique:name==='dedupKey',
+  defaultValue:name==='companyName'?null:type==='TEXT'?"''":type==='BOOLEAN'?false:'now'};
+}
 export async function provisionLeadSchema(base, key) {
  const request=async(path,body)=>{
   const response=await fetch(`${base}/rest/metadata/${path}`,{method:body?'POST':'GET',headers:{authorization:`Bearer ${key}`,'content-type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(60000)});
@@ -46,7 +53,7 @@ export async function provisionLeadSchema(base, key) {
  for(const [name,type] of Object.entries(definitions)) {
   const found=fields.find(f=>f.name===name);
   if(found) {assert.equal(found.type,type);continue;}
-  await request('fields',{objectMetadataId:object.id,name,label:name.replace(/([A-Z])/g,' $1'),type,isNullable:name==='companyName',isUnique:name==='dedupKey'});
+  await request('fields',leadFieldDefinition(object.id,name,type));
  }
  fields=(await list('fields','fields')).filter(f=>f.objectMetadataId===object.id);
  for(const [name,type] of Object.entries(definitions)) {const f=fields.find(f=>f.name===name);assert.equal(f?.type,type);assert.equal(f?.isUnique,name==='dedupKey');}
