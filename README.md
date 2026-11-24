@@ -9,7 +9,17 @@ This is a public, early prototype for replacing the HubSpot marketing site with 
 - **Twenty CRM:** optional server-side lead adapter. It defaults to safe demo mode and has not been connected to a live workspace.
 - **White-label:** exact hostname-to-brand mapping; the local `partner.localhost` host shows a separate demo brand.
 
-The default site content is illustrative; the existing HubSpot mirror has not yet been imported. No production lead data, credentials, or live CRM calls are part of this prototype.
+Demo mode uses illustrative content. Full-site CI imports public source pages into a disposable CMS. No production lead data, credentials, or live CRM calls are part of this prototype.
+
+## Review broken source links after an import
+
+Download `full-site-evidence` from the PR's **Full-site disposable integration** run. In `inventory.json`, each `sourceDefects` entry pairs a 404 `path` with `linkingPaths`: the distinct public pages where the crawler saw a direct link to that URL. To print the editor's checklist from the extracted artifact:
+
+```sh
+jq '.sourceDefects[] | {path, known, linkingPaths}' inventory.json
+```
+
+Open the linking pages and confirm the correct destination with the content owner before editing. An empty list means no direct link was observed; inspect the sitemap and redirect records instead. `known: true` means the defect was expected, not that the link is correct. After an approved source correction, rerun the inventory and review any baseline change rather than silently removing the 404 gate.
 
 ## Makefile: local development and tests
 

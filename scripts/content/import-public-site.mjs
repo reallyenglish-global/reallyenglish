@@ -48,6 +48,7 @@ export async function importPublicSite({ output = '.ci/content/manifest.json', m
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000 || !Number.isInteger(maxSitemaps) || maxSitemaps < 1 || maxSitemaps > 50 || !Number.isFinite(minIntervalMs) || minIntervalMs < 0) throw new Error('invalid_limits');
   const started = Date.now(); let bytes = 0; let nextSlot = 0;
   const discovered = new Map(), terminal = new Map(), queue = new Map(), pages = new Map();
+  const linkingPaths = new Map();
   const redirects = [], excluded = [], failed = [], fetched = [], sitemaps = [], inventoryIssues = [];
   const schedule = async () => { const at = Math.max(Date.now(), nextSlot); nextSlot = at + minIntervalMs; await new Promise((r) => setTimeout(r, at - Date.now())); };
   const fetch = (url) => get(url, { schedule, onResponse: (r) => { bytes += r.bytes ?? Buffer.byteLength(r.body); if (bytes > maxTotalBytes) throw new Error('total_body_limit'); } });
@@ -66,12 +67,14 @@ export async function importPublicSite({ output = '.ci/content/manifest.json', m
   const snapshot = () => {
     const sort = (list) => [...list].sort((a,b) => canonicalJson(a).localeCompare(canonicalJson(b)));
     const unique = (list) => [...new Map(list.map((x) => [canonicalJson(x),x])).values()];
-    const manifest = { version: 1, importerVersion: '1.1.0', generatedAt: new Date().toISOString(),
+    const manifest = { version: 1, importerVersion: '1.2.0', generatedAt: new Date().toISOString(),
       sourceSitemapHashes: sitemaps.map((s) => s.hash), sitemaps: sort(sitemaps),
       discovered: sort(discovered.values()), dispositions: sort(terminal.values()), fetched: sort(fetched),
       redirects: sort(unique(redirects)), excluded: sort(unique(excluded)), failed: sort(failed),
       pending: [...discovered.keys()].filter((url) => !terminal.has(url)).sort(), pages: sort(pages.values()),
-      sourceDefects: failed.filter((x) => x.status === 404).map((x) => ({ ...x, known: KNOWN_404.has(x.path) })),
+      sourceDefects: failed.filter((x) => x.status === 404).map((x) => ({
+        ...x, known: KNOWN_404.has(x.path), linkingPaths: [...(linkingPaths.get(x.url) ?? [])].sort(),
+      })),
       inventoryIssues, totalBytes: bytes, elapsedMs: Date.now() - started,
       baseline: { sitemapPaths: 112, requestedPaths: 179, known404Paths: [...KNOWN_404] },
     };
@@ -130,7 +133,9 @@ export async function importPublicSite({ output = '.ci/content/manifest.json', m
       // Inventory is independent of extraction success.
       for (const link of pageLinks(result.body, id)) {
         if (link.reason) { excluded.push({ ...link, discoveredBy: id }); continue; }
-        discover(link.url, id);
+        const target = discover(link.url, id);
+        if (!linkingPaths.has(target)) linkingPaths.set(target, new Set());
+        linkingPaths.get(target).add(path);
       }
       const record = normalizePage(result.body,id);
       record.source = { ...record.source, fetchedAt: source.fetchedAt, lastmod: discovered.get(id)?.lastmod ?? item.lastmod };
