@@ -2,7 +2,7 @@
 interface Props { brandSlug: string; brandName: string; }
 const { brandSlug, brandName } = Astro.props;
 ---
-<form class="grid gap-4" data-lead-form data-brand={brandSlug}>
+<form method="post" action="/api/leads" class="grid gap-4" data-lead-form data-brand={brandSlug}>
   <div class="grid gap-4 sm:grid-cols-2">
     <label class="grid gap-2 text-sm font-semibold">First name<input name="firstName" autocomplete="given-name" required maxlength="80" class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal" /></label>
     <label class="grid gap-2 text-sm font-semibold">Last name<input name="lastName" autocomplete="family-name" required maxlength="80" class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal" /></label>
@@ -17,12 +17,19 @@ const { brandSlug, brandName } = Astro.props;
 </form>
 <script>
   document.querySelectorAll<HTMLFormElement>('[data-lead-form]').forEach((form) => {
+    let submissionId: string | undefined;
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const status = form.querySelector<HTMLElement>('[data-form-status]');
       const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
       if (!status || !button) return;
-      const values = Object.fromEntries(new FormData(form).entries());
+      if (!globalThis.crypto?.randomUUID) { status.textContent = 'Secure submission is unavailable. Nothing was sent.'; return; }
+      submissionId ??= crypto.randomUUID();
+      const values: Record<string, unknown> = Object.fromEntries(new FormData(form).entries());
+      values.consent = values.consent === 'on';
+      values.submissionId = submissionId;
+      values.sourcePath = window.location.pathname;
+      values.locale = document.documentElement.lang;
       values.brandSlug = form.dataset.brand ?? '';
       values.sourceUrl = `${window.location.origin}${window.location.pathname}`;
       status.textContent = 'Sending…'; button.disabled = true;
@@ -30,7 +37,7 @@ const { brandSlug, brandName } = Astro.props;
         const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
         const result = await response.json();
         status.textContent = response.ok ? (result.mode === 'demo' ? 'Demo only: this enquiry was not saved or sent.' : 'Thank you. Your enquiry has been received.') : (result.error ?? 'We could not send your enquiry. Please try again later.');
-        if (response.ok) form.reset();
+        if (response.ok) { form.reset(); submissionId = undefined; }
       } catch { status.textContent = 'We could not send your enquiry. Please try again later.'; }
       finally { button.disabled = false; }
     });

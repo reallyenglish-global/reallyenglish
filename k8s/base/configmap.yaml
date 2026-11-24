@@ -4,6 +4,7 @@ metadata:
   name: website-config
 data:
   CMS_API_URL: "http://cms:1337"
+  CMS_CONTENT_MODE: "demo"
   CRM_MODE: "demo"
   PUBLIC_SITE_ORIGINS: "http://localhost:4321,http://127.0.0.1:4321,http://partner.localhost:4321"
   TWENTY_LEAD_OBJECT_API_NAME: "websiteLeads"

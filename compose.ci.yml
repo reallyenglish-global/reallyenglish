@@ -1,0 +1,93 @@
+name: reallyenglish-ci
+x-twenty: &twenty
+  image: twentycrm/twenty:v2.59.0@sha256:76933f24d3781a3a90809857217b0cfd70735b0fa79eee4acc76956573810439
+  platform: linux/amd64
+  environment: &twenty-env
+    PG_DATABASE_URL: postgres://postgres:${TWENTY_DB_PASSWORD:?}@twenty-db:5432/default
+    REDIS_URL: redis://redis:6379
+    SERVER_URL: http://localhost:3000
+    AUTH_COOKIE_ALLOWED_ORIGINS: http://localhost:3000
+    ENCRYPTION_KEY: ${ENCRYPTION_KEY:?}
+    APP_SECRET: ${APP_SECRET:?}
+    STORAGE_TYPE: local
+    AUTH_PASSWORD_ENABLED: 'true'
+    IS_EMAIL_VERIFICATION_REQUIRED: 'false'
+    IS_MULTIWORKSPACE_ENABLED: 'false'
+    IS_WORKSPACE_CREATION_CAPTCHA_ENABLED: 'false'
+    IS_BILLING_ENABLED: 'false'
+    TELEMETRY_ENABLED: 'false'
+    EMAIL_DRIVER: LOGGER
+  volumes:
+    - twenty-storage:/app/packages/twenty-server/.local-storage
+  networks: [sandbox]
+services:
+  cms-db:
+    image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    environment:
+      POSTGRES_PASSWORD: ${CMS_DB_PASSWORD:?}
+      POSTGRES_DB: strapi
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d strapi']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    volumes: ['cms-db:/var/lib/postgresql/data']
+    networks: [sandbox]
+  twenty-db:
+    image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    environment:
+      POSTGRES_PASSWORD: ${TWENTY_DB_PASSWORD:?}
+      POSTGRES_DB: default
+    mem_limit: 768m
+    cpus: 1
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d default']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    volumes: ['twenty-db:/var/lib/postgresql/data']
+    networks: [sandbox]
+  redis:
+    image: redis:7.4.7-alpine@sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
+    command: ['redis-server', '--maxmemory', '192mb', '--maxmemory-policy', 'noeviction']
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    networks: [sandbox]
+  twenty-server:
+    <<: *twenty
+    mem_limit: 4g
+    cpus: 2
+    ports: ['127.0.0.1:3000:3000']
+    depends_on:
+      twenty-db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, 'http://localhost:3000/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 60
+  twenty-worker:
+    <<: *twenty
+    command: ['yarn', 'worker:prod']
+    environment:
+      <<: *twenty-env
+      DISABLE_DB_MIGRATIONS: 'true'
+      DISABLE_CRON_JOBS_REGISTRATION: 'true'
+    mem_limit: 2g
+    cpus: 1
+    depends_on:
+      twenty-server: {condition: service_healthy}
+networks:
+  sandbox:
+    internal: true
+volumes:
+  twenty-db:
+  cms-db:
+  twenty-storage:

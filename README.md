@@ -62,7 +62,8 @@ KUBE_CONTEXT=kind-reallyenglish-prototype make port-forward
 
 Visit `http://localhost:4321`. To access the CMS admin, use `KUBE_CONTEXT=kind-reallyenglish-prototype make port-forward-cms`, then open `http://localhost:1337/admin`.
 
-- `PUBLIC_SITE_ORIGINS` is the explicit comma-separated Origin allowlist for the lead endpoint; include every exact browser origin (scheme, host, and port; no path or trailing slash), especially behind a reverse proxy.
+- `CMS_CONTENT_MODE=demo` (default and Kind overlay) serves the built-in homepage without a seed or token. `published` requires `CMS_API_URL`, a server-only `CMS_READ_TOKEN` and published ReallyEnglish pages. Missing routes return 404; an unreadable or unavailable CMS returns 503. This setting is independent of `CRM_MODE`.
+- Lead POSTs require an Origin matching the exact configured request host, scheme and port. Without JavaScript the form posts to the same origin and the JSON-only endpoint rejects it without writing.
 - `BRAND_HOST_MAP` maps exact verified hostnames to CMS Brand slugs; it is an allowlist, not a query-string switch.
 
 The Makefile `deploy` target refuses every context except the named local Kind context and requires an explicit `DEPLOY_APPROVED=yes`. It does not deploy to GKE or any remote/production cluster. No `kubectl apply`, Kind cluster creation, or image build was run while preparing this scaffold.
