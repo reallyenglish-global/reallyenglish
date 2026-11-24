@@ -23,6 +23,7 @@ test('lead endpoint contract (unit doubles, not live Twenty evidence)', async t 
   const env = { ...process.env }, originalFetch = globalThis.fetch;
   try {
     delete process.env.CRM_MODE;
+    delete process.env.CMS_CONTENT_MODE;
     delete process.env.BRAND_HOST_MAP;
     globalThis.fetch = async () => { throw new Error('unexpected_network'); };
     await t.test('default demo never contacts CRM', async () => {
@@ -55,7 +56,22 @@ test('lead endpoint contract (unit doubles, not live Twenty evidence)', async t 
       for (let i=0;i<120;i++) assert.equal((await submit(lead(), {ip:'rate-test'})).status, 202);
       assert.equal((await submit(lead(), {ip:'rate-test'})).status, 429);
     });
+    await t.test('demo validates localized published form without CRM writes', async () => {
+      Object.assign(process.env,{CMS_CONTENT_MODE:'published',CMS_API_URL:'http://cms.invalid',CMS_READ_TOKEN:'test'});
+      const paths=[];
+      globalThis.fetch=async (url,opts)=>{
+        assert.equal(opts.method??'GET','GET'); paths.push(String(url));
+        return Response.json({path:'/zh/about',locale:'zh',canonical:'https://www.reallyenglish.com/zh/about'});
+      };
+      const form=lead({sourcePath:'/zh/about',sourceUrl:'http://localhost:4321/zh/about',locale:'zh'});
+      assert.equal((await submit(form)).status,202);
+      assert.equal((await submit({...form,locale:'en'})).status,400);
+      assert.equal((await submit(form,{headers:{'Content-Type':'application/x-www-form-urlencoded'}})).status,415);
+      assert.equal(paths.length,2);
+      assert.ok(paths.every(p=>new URL(p).hostname==='cms.invalid'));
+    });
     process.env.CRM_MODE = 'twenty';
+    process.env.CMS_CONTENT_MODE = 'published';
     process.env.CMS_API_URL = 'http://127.0.0.1:1337';
     process.env.CMS_READ_TOKEN = 'unit-cms-key';
     process.env.TWENTY_BASE_URL = 'http://127.0.0.1:3000';

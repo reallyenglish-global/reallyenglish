@@ -2,17 +2,19 @@
 import CmsPage from '../components/CmsPage.astro';
 import LeadForm from '../components/LeadForm.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
-import {configuredBrand,loadHomePage,brandTheme} from '../lib/site';
+import {configuredBrand,contentMode,loadBrand,loadHomePage,brandTheme} from '../lib/site';
 import {loadCmsPage} from '../lib/content';
 const host=Astro.request.headers.get('host') || '';
-const brand=configuredBrand(host);
-if (!brand) return new Response('Not found',{status:404});
-const cms=brand.slug==='reallyenglish' && process.env.CMS_API_URL ? await loadCmsPage(host,'/') : null;
+const tenant=configuredBrand(host);
+if (!tenant) return new Response('Not found',{status:404});
+const published=tenant.slug==='reallyenglish' && contentMode()!=='demo';
+const cms=published ? await loadCmsPage(host,'/') : null;
 if (cms instanceof Response) return cms;
-if (brand.slug==='reallyenglish' && process.env.CMS_API_URL && !cms) return new Response('Content unavailable',{status:503});
-const demo=await loadHomePage(brand);
+if (published && !cms) return new Response('Not found',{status:404});
+const brand=cms ? tenant : await loadBrand(tenant);
+const demo=cms ? null : await loadHomePage(brand);
 const theme=brandTheme(brand);
 ---
-{cms ? <CmsPage page={cms} /> : <SiteLayout brand={brand} title={`${brand.name} | English learning for real life`} description={demo.body} primary={theme.primary} accent={theme.accent}>
+{cms ? <CmsPage page={cms} /> : demo && <SiteLayout brand={brand} title={`${brand.name} | English learning for real life`} description={demo.body} primary={theme.primary} accent={theme.accent}>
 <header><a href="/">{brand.logoText}</a></header><main><h1>{demo.title}</h1><p>{demo.body}</p>{demo.features.map(f=><section><h2>{f.title}</h2><p>{f.body}</p></section>)}<section id="contact"><LeadForm brandSlug={brand.slug} brandName={brand.name}/></section></main>
 </SiteLayout>}

@@ -25,8 +25,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     const draft=await docs.findOne({documentId:probe.documentId,status:'draft'});
     if(!draft || draft.path!==probe.path || draft.externalKey!==probe.key)return ctx.badRequest();
     if(action==='draft-update'){
-      const title=probe.sentinel+'_LIVE',contentHtml=`<p>${title}</p>`;
-      await docs.update({documentId:probe.documentId,data:{title,contentHtml,contentHash:crypto.createHash('sha256').update(contentHtml).digest('hex')}});
+      await docs.update({documentId:probe.documentId,data:{contentHtml:`<p class="editor-style">${probe.sentinel}_LIVE</p>`}});
     }else if(action==='publish')await docs.publish({documentId:probe.documentId});
     else await docs.unpublish({documentId:probe.documentId});
     ctx.body={ok:true};

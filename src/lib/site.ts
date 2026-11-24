@@ -68,30 +68,24 @@ export function resolveBrand(host: string): Brand {
   return brand;
 }
 
-function unwrap<T>(payload: unknown): T | null {
-  if (!payload || typeof payload !== 'object') return null;
-  const data = (payload as { data?: unknown }).data;
-  if (Array.isArray(data)) return (data[0] as T | undefined) ?? null;
-  return (data as T | null) ?? null;
-}
-
-async function cmsEntry(path: string): Promise<Record<string, unknown> | null> {
-  const base = process.env.CMS_API_URL?.trim();
-  if (!base) return null;
-  try {
-    const response = await fetch(`${base.replace(/\/$/, '')}${path}`, {
-      headers: process.env.CMS_API_TOKEN ? { Authorization: `Bearer ${process.env.CMS_API_TOKEN}` } : {},
-      signal: AbortSignal.timeout(2500), redirect: 'error',
-    });
-    if (!response.ok) return null;
-    return unwrap<Record<string, unknown>>(await response.json());
-  } catch { return null; }
-}
+export const contentMode = () => process.env.CMS_CONTENT_MODE ?? 'demo';
 
 export async function loadBrand(fallback: Brand): Promise<Brand> {
-  const query = new URLSearchParams({ 'filters[slug][$eq]': fallback.slug });
-  const entry = await cmsEntry(`/api/brands?${query}`);
-  if (!entry || typeof entry.name !== 'string') return fallback;
+  const base = process.env.CMS_API_URL?.trim();
+  const token = process.env.CMS_READ_TOKEN;
+  if (!base || !token) return fallback;
+  let entry;
+  try {
+    const endpoint = new URL('/api/site/brand', base);
+    endpoint.searchParams.set('brand',fallback.slug);
+    const response = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(2500), redirect: 'error',
+    });
+    if (!response.ok) return fallback;
+    entry = await response.json();
+  } catch { return fallback; }
+  if (entry?.slug !== fallback.slug || typeof entry.name !== 'string') return fallback;
   return {
     ...fallback, name: entry.name,
     logoText: typeof entry.logoText === 'string' ? entry.logoText : fallback.logoText,
@@ -101,21 +95,20 @@ export async function loadBrand(fallback: Brand): Promise<Brand> {
 }
 
 export async function loadHomePage(brand: Brand): Promise<HomePage> {
-  const fallback = fallbackPages[brand.slug] ?? fallbackPages.reallyenglish!;
-  const query = new URLSearchParams({
-    'filters[slug][$eq]': 'home', 'filters[brand][slug][$eq]': brand.slug,
-    'populate[brand]': '*',
-  });
-  const entry = await cmsEntry(`/api/pages?${query}`);
-  if (!entry || typeof entry.heroTitle !== 'string' || typeof entry.heroBody !== 'string') return fallback;
-  const features = Array.isArray(entry.features) ? entry.features.filter((item): item is { title: string; body: string } => Boolean(item && typeof item === 'object' && typeof (item as { title?: unknown }).title === 'string' && typeof (item as { body?: unknown }).body === 'string')) : fallback.features;
-  const href = typeof entry.ctaHref === 'string' && (entry.ctaHref.startsWith('/') || entry.ctaHref.startsWith('#')) ? entry.ctaHref : fallback.ctaHref;
-  return {
-    eyebrow: typeof entry.eyebrow === 'string' ? entry.eyebrow : fallback.eyebrow,
-    title: entry.heroTitle, body: entry.heroBody,
-    ctaLabel: typeof entry.ctaLabel === 'string' ? entry.ctaLabel : fallback.ctaLabel,
-    ctaHref: href, features: features.length ? features : fallback.features,
-  };
+  const fallback = fallbackPages[brand.slug]!;
+  // Legacy hero records can still be read with a scoped Strapi collection token.
+  const base = process.env.CMS_API_URL, token = process.env.CMS_API_TOKEN;
+  if (!base || !token) return fallback;
+  try {
+    const endpoint = new URL('/api/pages',base);
+    endpoint.search = new URLSearchParams({'filters[slug][$eq]':'home','filters[brand][slug][$eq]':brand.slug,'populate[brand]':'*'}).toString();
+    const response = await fetch(endpoint,{headers:{Authorization:`Bearer ${token}`},redirect:'error',signal:AbortSignal.timeout(2500)});
+    if (!response.ok) return fallback;
+    const entry = (await response.json())?.data?.[0];
+    if (entry?.brand?.slug !== brand.slug || typeof entry.heroTitle !== 'string' || typeof entry.heroBody !== 'string') return fallback;
+    const features = Array.isArray(entry.features) ? entry.features.filter((f: any)=>typeof f?.title==='string' && typeof f?.body==='string') : [];
+    return {...fallback,title:entry.heroTitle,body:entry.heroBody,features:features.length ? features : fallback.features};
+  } catch { return fallback; }
 }
 
 export function brandTheme(brand: Brand): { primary: string; accent: string } {

@@ -52,7 +52,7 @@ module.exports = async function verifyCms(strapi, { seedPublicContent, manifestP
     assert((await published())?.title === sentinel, 'Publish not visible');
     report.checks.publishVisible = true;
     const changed = `${sentinel}_UPDATED`, contentHtml = `<p>${changed}</p>`;
-    await docs.update({ documentId: probeId, data: { title: changed, contentHtml, contentHash: hash(contentHtml) } });
+    await docs.update({ documentId: probeId, data: { title: changed, contentHtml } });
     assert((await published())?.title === sentinel, 'Draft update leaked before publish');
     assert((await docs.findOne({ documentId: probeId, status: 'draft' }))?.title === changed, 'Draft update missing');
     report.checks.draftUpdateIsolated = true;

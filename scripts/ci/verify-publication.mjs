@@ -12,8 +12,8 @@ export async function verifyPublication(token){
   assert.equal((await mutate('publish')).status,200);
   let response=await page();assert.equal(response.status,200);assert.ok((await response.text()).includes(probe.sentinel));report.checks.push('published-visible');
   assert.equal((await mutate('draft-update')).status,200);
-  response=await page();let html=await response.text();assert.equal(response.status,200);assert.ok(html.includes(probe.sentinel));assert.ok(!html.includes(probe.sentinel+'_LIVE'));report.checks.push('draft-update-isolated');
-  assert.equal((await mutate('publish')).status,200);response=await page();assert.equal(response.status,200);assert.ok((await response.text()).includes(probe.sentinel+'_LIVE'));report.checks.push('published-update-without-rebuild');
+  response=await page();let html=await response.text();assert.equal(response.status,200);assert.ok(html.includes(`<p>${probe.sentinel}</p>`));assert.ok(!html.includes(probe.sentinel+'_LIVE'));report.checks.push('draft-update-isolated');
+  assert.equal((await mutate('publish')).status,200);response=await page();assert.equal(response.status,200);html=await response.text();assert.ok(html.includes(`<p>${probe.sentinel}_LIVE</p>`));assert.ok(!html.includes('editor-style'));report.checks.push('body-only-published-update-without-rebuild');
   assert.equal((await mutate('unpublish')).status,200);assert.equal((await page()).status,404);report.checks.push('unpublish-absent');report.success=true;
  }finally{writeFileSync('.ci/reports/publication.json',JSON.stringify(report,null,2));}
  return report;

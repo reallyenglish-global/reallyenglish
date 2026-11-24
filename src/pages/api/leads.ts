@@ -1,6 +1,6 @@
 import type { APIRoute, APIContext } from 'astro';
 import { createHash } from 'node:crypto';
-import { configuredBrand } from '../../lib/site';
+import { configuredBrand, contentMode } from '../../lib/site';
 
 export const prerender = false;
 const json = (body: object, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
@@ -81,14 +81,17 @@ export const POST: APIRoute = async (context: APIContext) => {
     const firstName = field('firstName', 80), lastName = field('lastName', 80);
     const email = field('email', 254).toLowerCase(), companyName = field('companyName', 160, true), message = field('message', 3000);
     if (!firstName || !lastName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || message.length < 10 || body.consent !== true || typeof body.submissionId !== 'string' || !UUID.test(body.submissionId)) return invalid();
-    const sourcePath = pathValue(body.sourcePath), locale = field('locale', 32);
-    if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(locale)) return invalid();
+    const sourcePath = pathValue(body.sourcePath), claimedLocale = field('locale', 32);
+    if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(claimedLocale)) return invalid();
+    let locale: string;
     let sourceUrl: string;
-    if (mode === 'demo') {
-      if (sourcePath !== '/' || locale !== 'en') return invalid();
+    if (mode === 'demo' && (contentMode() === 'demo' || brand.slug !== 'reallyenglish')) {
+      locale = 'en';
+      if (sourcePath !== '/' || claimedLocale !== locale) return invalid();
       sourceUrl = `${requestUrl.origin}/`;
     } else {
       if (brand.slug !== 'reallyenglish') return invalid();
+      if (contentMode() !== 'published') return unavailable();
       const cmsBase = process.env.CMS_API_URL, cmsToken = process.env.CMS_READ_TOKEN;
       if (!cmsBase || !cmsToken) return unavailable();
       const endpoint = new URL('/api/site/page', cmsBase);
@@ -99,7 +102,8 @@ export const POST: APIRoute = async (context: APIContext) => {
       if (response.status === 404) return invalid();
       if (!response.ok) return unavailable();
       const page = await boundedJson(response, 3_000_000) as Record<string, unknown>;
-      if (page.path !== sourcePath || page.locale !== locale) return invalid();
+      if (page.path !== sourcePath || page.locale !== claimedLocale) return invalid();
+      locale = page.locale;
       const canonical = new URL(String(page.canonical));
       if (canonical.origin !== 'https://www.reallyenglish.com' || canonical.username || canonical.password || canonical.search || canonical.hash) return unavailable();
       sourceUrl = new URL(sourcePath, canonical.origin).href;
