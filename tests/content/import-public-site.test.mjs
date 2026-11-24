@@ -31,6 +31,22 @@ test('inventory traverses beyond a batch, redirects and pagination; known 404 re
   assert.deepEqual(new Set(m.discovered.map((x)=>x.url)),new Set(m.dispositions.map((x)=>x.url)));
   assert.equal(m.dispositions.length,m.discovered.length);
 });
+test('source 404 lists every distinct directly linking page, including links discovered after the failure', async () => {
+  const broken = '/blog/linkedin.com/in/richarddigitaledu';
+  const sitemap = `<urlset><url><loc>${root}${broken}</loc></url><url><loc>${root}/</loc></url></urlset>`;
+  const pages = {
+    '/': html(`<a href="${broken}#bio">author</a><a href="${broken}">bio</a><a href="/later">next</a>`),
+    '/later': html(`<a href="${broken}">author</a>`),
+  };
+  const get = async url => {
+    const path = new URL(url).pathname;
+    return {url, status: path === broken ? 404 : 200, chain: [], headers: {'content-type':'text/html'},
+      body: path === '/sitemap.xml' ? sitemap : pages[path] ?? ''};
+  };
+  const manifest = await importPublicSite({output:null, enforceBaseline:false, minIntervalMs:0, get});
+  assert.deepEqual(manifest.sourceDefects[0].linkingPaths, ['/', '/later']);
+  assert.equal(manifest.editorialSuccess, false);
+});
 test('page cap leaves pending and fails closed',async()=>{
  const m=await importPublicSite({output:null,enforceBaseline:false,maxPages:1,minIntervalMs:0,get:async(url)=>({url,status:200,headers:{'content-type':'text/html'},chain:[],body:url.endsWith('.xml')?`<urlset><url><loc>${root}/</loc></url><url><loc>${root}/two</loc></url></urlset>`:html()})});
  assert.equal(m.technicalSuccess,false);assert.equal(m.pending.length,1);
