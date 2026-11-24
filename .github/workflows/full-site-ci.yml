@@ -1,7 +1,7 @@
 name: Full-site disposable integration
 on:
-  push:
-    branches: [feat/full-site-cms-crm-ci]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
