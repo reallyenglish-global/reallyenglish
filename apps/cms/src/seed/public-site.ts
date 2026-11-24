@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import crypto from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { sha256, isHash, isLocale, normalizeRoute, sourceUrl, sanitizeContent, projectPage } from './content-contract';
 
 type ManifestPage = {
@@ -63,7 +64,9 @@ export async function seedPublicContent(strapi: any) {
       brand: { connect: [{ documentId: brand.documentId }] },
     };
     if (existing && existing.path !== validated.path) throw new Error(`Manifest key/path mismatch for ${validated.externalKey}`);
-    if (existing && existing.contentHash === validated.contentHash) {
+    // Compare persisted source fields, not fetch time or the relation write command.
+    const {sourceFetchedAt, brand: brandRelation, ...managed} = data;
+    if (existing && Object.entries(managed).every(([key,value]) => isDeepStrictEqual(existing[key], value))) {
       const published = await docs.findFirst({ filters: { externalKey: validated.externalKey }, status: 'published' });
       if (!published) await docs.publish({ documentId: existing.documentId });
       report.push({ key: validated.externalKey, documentId: existing.documentId, contentHash: validated.contentHash, status: 'unchanged' });

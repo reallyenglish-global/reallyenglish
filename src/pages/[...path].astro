@@ -3,6 +3,7 @@ import CmsPage from '../components/CmsPage.astro';
 import { loadCmsPage } from '../lib/content';
 const host = Astro.request.headers.get('host') || '';
 const page = await loadCmsPage(host, new URL(Astro.request.url).pathname);
+if (page instanceof Response) return page;
 if (!page) return new Response('Not found', {status:404});
 ---
 <CmsPage page={page} />

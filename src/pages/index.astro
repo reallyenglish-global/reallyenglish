@@ -8,6 +8,7 @@ const host=Astro.request.headers.get('host') || '';
 const brand=configuredBrand(host);
 if (!brand) return new Response('Not found',{status:404});
 const cms=brand.slug==='reallyenglish' && process.env.CMS_API_URL ? await loadCmsPage(host,'/') : null;
+if (cms instanceof Response) return cms;
 if (brand.slug==='reallyenglish' && process.env.CMS_API_URL && !cms) return new Response('Content unavailable',{status:503});
 const demo=await loadHomePage(brand);
 const theme=brandTheme(brand);
